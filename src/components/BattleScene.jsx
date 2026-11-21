@@ -1,10 +1,14 @@
 // ─── NAM vs NỮ LIVE · BattleScene.jsx ──────────────────────────────────────
-// Màn battle 2D THUẦN (CSS/SVG/div) — giống ảnh mẫu TikTok LIVE GIRL vs BOY:
-// nền chia đôi dọc HỒNG (trái) / XANH (phải), lửa 2D sau lưng, pill điểm
-// GIRL/BOY + số đen, badge LIVE đỏ giữa, 2 nhân vật blocky tự vẽ bằng div
-// (KHÔNG dùng model Roblox thật, không dùng asset có bản quyền, KHÔNG 3D).
+// Màn battle (giống ảnh mẫu TikTok LIVE GIRL vs BOY): nền chia đôi dọc HỒNG
+// (trái) / XANH (phải), lửa 2D sau lưng, pill điểm GIRL/BOY + số đen, badge
+// LIVE đỏ giữa, 2 nhân vật 3D KayKit (Nữ Rogue + Nam Knight, CC0) đứng đối
+// mặt nhau ngay vạch giữa — phe dẫn thì ĐẨY, phe bị đẩy thì PHÒNG THỦ
+// (xem src/components/ThreeFighters.jsx). Nếu WebGL/GLB load lỗi thì tự
+// về lại 2 nhân vật blocky 2D tự vẽ (dự phòng, không bao giờ màn trắng).
 // Vạch giữa (ranh giới hồng/xanh) chạy theo rope (-1..+1): phe nào mạnh hơn
 // thì đẩy vạch sang phía phe kia; chạm mép (±0,9) là thắng màn.
+import { useState } from 'react'
+import ThreeFighters from './ThreeFighters'
 
 function Flame({ className, style }) {
   return (
@@ -54,12 +58,14 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
   // Tỉ lệ đẩy (ngưỡng thắng chênh 100 điểm): cmt +1 → vạch nhích 0,45% (tí xíu),
   // 100 tim/follow +10 → nhích 4,5%, quà to 100 → vọt 45% tới sát mép.
   const divider = 50 + rope * 45
-  // Nghiêng người: thua thì ngả về sau. Quà TO (jolt big) thì phe bị đẩy
-  // ngửa thêm 14° + rung màn hình mạnh; quà nhỏ rung nhẹ; cmt/tim chỉ nhích
-  // vạch (không rung) — đúng tỉ lệ tấn chốt.
+  // Nhân vật 3D đã load xong chưa — chưa xong / load lỗi thì hiện blocky 2D
+  // dự phòng để màn không bao giờ trống nhân vật.
+  const [threeOk, setThreeOk] = useState(false)
+  // Nghiêng người (chỉ dùng cho nhân vật blocky dự phòng): thua thì ngả về
+  // sau. Quà TO (jolt big) thì phe bị đẩy ngửa thêm 14° + rung màn hình
+  // mạnh; quà nhỏ rung nhẹ; cmt/tim chỉ nhích vạch (không rung).
   const girlLean = (rope > 0 ? -7 : 11) + (jolt === 'big' && joltTeam === 'B' ? 14 : 0)
   const boyLean = (rope < 0 ? 7 : -11) - (jolt === 'big' && joltTeam === 'A' ? 14 : 0)
-  const shakeCls = jolt === 'big' ? 'nvb-shake-hard' : jolt === 'small' ? 'nvb-shake-soft' : ''
   const leading = rope > 0.05 ? 'A' : rope < -0.05 ? 'B' : null
   return (
     <div className="nvb-stage" aria-label="Nam vs Nữ">
@@ -92,17 +98,19 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
       <div className="nvb-teamtag left">🌹 TEAM G</div>
       <div className="nvb-teamtag right">🎵 TEAM B</div>
 
-      {/* 2 nhân vật đứng sát vạch giữa, đối mặt nhau — bọc trong lớp rung:
-           key đổi theo từng hiệu ứng để animation rung chạy lại mỗi lần có quà */}
-      <div key={joltId || 'none'} className={`nvb-chars ${shakeCls}`}>
-        <div className="nvb-char-wrap girl" style={{ left: `calc(${divider}% - 138px)` }}>
-          <Blocky side="girl" lean={girlLean} />
-          <div className="nvb-nameplate">GIRL</div>
-        </div>
-        <div className="nvb-char-wrap boy" style={{ left: `calc(${divider}% + 18px)` }}>
-          <Blocky side="boy" lean={boyLean} />
-          <div className="nvb-nameplate">BOY</div>
-        </div>
+      {/* 2 nhân vật 3D KayKit đứng sát vạch giữa, đối mặt nhau (canvas trong
+           suốt phủ lên nền). Rung màn hình theo quà nằm trong ThreeFighters.
+           Tên GIRL/BOY giữ dạng HTML để luôn đọc được, kể cả khi 3D lỗi.
+           Nhãn kẹp trong màn hình (max/min) để vạch chạy tới mép thì tên
+           không bị cắt nửa như trước. */}
+      <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} onStatus={(s) => setThreeOk(s === 'ready')} />
+      <div className="nvb-char-wrap girl" style={{ left: `max(6px, calc(${divider}% - 138px))` }}>
+        {!threeOk && <Blocky side="girl" lean={girlLean} />}
+        <div className="nvb-nameplate">GIRL</div>
+      </div>
+      <div className="nvb-char-wrap boy" style={{ left: `min(calc(${divider}% + 18px), calc(100% - 128px))` }}>
+        {!threeOk && <Blocky side="boy" lean={boyLean} />}
+        <div className="nvb-nameplate">BOY</div>
       </div>
 
       {/* Pill điểm trên cùng — giống ảnh mẫu: [số đen] + GIRL hồng / BOY xanh + [số đen] */}

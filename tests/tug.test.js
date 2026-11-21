@@ -5,6 +5,7 @@
 // điểm theo giá 1/5/10/25/100) · 100 tim/người → +10 Nữ · 1 follow → +10 Nam ·
 // cmt boy/nam +1 Nam, girl/nữ +1 Nữ (đẩy ngay, không vào đội, không +1 theo người).
 import assert from 'node:assert'
+import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS } from '../src/game/poses.js'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
 import { TikTokWS, WS_STATUS } from '../src/game/wsClient.js'
 import { detectProvince, provinceInfo, provinceRank } from '../src/game/provinces.js'
@@ -1078,6 +1079,44 @@ test('WS rớt thì tự nối lại (backoff tăng dần, tối đa 30s) và m�
     globalThis.WebSocket = RealWS
     globalThis.setTimeout = RealTimer
   }
+})
+
+// ─── NHÂN VẬT 3D KayKit: dáng theo thế trận ───────────────────────────────
+test('DÁNG 3D: Nữ dẫn (rope > 0) → Nữ ĐẨY, Nam PHÒNG THỦ', () => {
+  assert.deepEqual(posesForRope(0.6), { A: 'push', B: 'defend' })
+  assert.equal(poseForSide(0.9, 'A'), 'push')
+  assert.equal(poseForSide(0.9, 'B'), 'defend')
+})
+test('DÁNG 3D: Nam dẫn (rope < 0) → Nam ĐẨY, Nữ PHÒNG THỦ', () => {
+  assert.deepEqual(posesForRope(-0.6), { A: 'defend', B: 'push' })
+  assert.equal(poseForSide(-0.9, 'A'), 'defend')
+  assert.equal(poseForSide(-0.9, 'B'), 'push')
+})
+test('DÁNG 3D: hòa (|rope| <= 0.05) → cả 2 đứng yên Idle', () => {
+  assert.deepEqual(posesForRope(0), { A: 'idle', B: 'idle' })
+  assert.deepEqual(posesForRope(0.05), { A: 'idle', B: 'idle' })
+  assert.deepEqual(posesForRope(-0.04), { A: 'idle', B: 'idle' })
+  assert.deepEqual(posesForRope(0.051), { A: 'push', B: 'defend' })
+})
+test('DÁNG 3D: rope rác (NaN/undefined) thì coi như hòa, không crash', () => {
+  assert.deepEqual(posesForRope(NaN), { A: 'idle', B: 'idle' })
+  assert.deepEqual(posesForRope(undefined), { A: 'idle', B: 'idle' })
+})
+test('DÁNG 3D: clip đúng tên trong GLB KayKit (Idle / Punch_A / Blocking)', () => {
+  assert.equal(POSE_CLIPS.idle, 'Idle')
+  assert.equal(POSE_CLIPS.push, 'Unarmed_Melee_Attack_Punch_A')
+  assert.equal(POSE_CLIPS.defend, 'Blocking')
+})
+test('DÁNG 3D: URL GLB thử local trước rồi CDN KayKit đã ghim commit', () => {
+  const a = glbUrlsFor('A')
+  assert.equal(a[0], '/characters/rogue.glb')
+  assert.ok(a[1].includes('cdn.jsdelivr.net/gh/KayKit-Game-Assets/'), 'fallback jsDelivr')
+  assert.ok(a[2].includes('raw.githubusercontent.com/KayKit-Game-Assets/'), 'fallback raw')
+  const b = glbUrlsFor('B')
+  assert.equal(b[0], '/characters/knight.glb')
+  assert.ok(b[1].endsWith('/Knight.glb') && b[2].endsWith('/Knight.glb'))
+  assert.deepEqual(KEEP_ACCESSORIES.A, ['Knife'], 'Nữ chỉ giữ dao găm')
+  assert.deepEqual(KEEP_ACCESSORIES.B, ['1H_Sword', 'Round_Shield'], 'Nam chỉ giữ kiếm + khiên tròn')
 })
 
 

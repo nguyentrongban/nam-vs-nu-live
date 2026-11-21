@@ -47,6 +47,10 @@ function DisplayGame() {
   const autoPlay = s?.settings?.autoPlay !== false
   const countdown = s ? Math.ceil(s.countdown) : 3
   const rope = s?.rope ?? 0
+  // ?pose=a|b|idle — khóa thế trận để chụp ảnh/kiểm tra dáng 3D (không ảnh
+  // hưởng luật chơi; không có param thì rope chạy theo game bình thường).
+  const poseParam = new URLSearchParams(window.location.search).get('pose')
+  const previewRope = poseParam === 'a' ? 0.6 : poseParam === 'b' ? -0.6 : poseParam === 'idle' ? 0 : null
   const teamA = s?.teams?.A
   const teamB = s?.teams?.B
   const roundTimeLeft = s ? Math.max(0, Math.ceil(s.roundTimeLeft || 0)) : 0
@@ -70,7 +74,7 @@ function DisplayGame() {
     <div className="pml-app" data-version={APP_VERSION}>
       <div className="pml-stage nvb">
         <BattleScene
-          rope={rope}
+          rope={previewRope ?? rope}
           scoreA={scoreA} scoreB={scoreB}
           countA={s?.teamCounts?.A || 0} countB={s?.teamCounts?.B || 0}
           winsA={teamA?.roundWins || 0} winsB={teamB?.roundWins || 0}
