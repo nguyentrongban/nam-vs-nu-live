@@ -1,0 +1,25 @@
+{
+  "author": "",
+  "dependencies": {
+    "lucide-react": "^1.76.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0"
+  },
+  "description": "NAM vs NỮ LIVE — game đối đầu 2 phe tương tác trên TikTok LIVE, chỉ tặng quà mới đẩy (React + Vite 2D, chạy hoàn toàn trên Render)",
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "name": "nam-vs-nu-live",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test": "node tests/tug.test.js"
+  },
+  "type": "module",
+  "version": "1.0.0"
+}
