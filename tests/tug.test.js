@@ -5,7 +5,7 @@
 // điểm theo giá 1/5/10/25/100) · 100 tim/người → +10 Nữ · 1 follow → +10 Nam ·
 // cmt boy/nam +1 Nam, girl/nữ +1 Nữ (đẩy ngay, không vào đội, không +1 theo người).
 import assert from 'node:assert'
-import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS } from '../src/game/poses.js'
+import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
@@ -1266,6 +1266,64 @@ test('HIỆU ỨNG QUÀ 100 XU: spotlight mang avatar + giá xu, hiện 4,5 giâ
   assert.equal(fx2.big, true, 'hạc giấy vẫn là quà to (pháo hoa)')
   assert.equal(fx2.spotlight, false, 'hạc giấy 99 xu không phải spotlight')
   assert.equal(fx2.dur, 3.5, 'quà to thường hiện 3,5 giây')
+})
+
+
+test('QUÀ 100 XU GÁN CỐ ĐỊNH PHE (19:12): mỗi món có phe riêng, không về phe thua', () => {
+  const nu = ['bó hoa', 'bouquet', 'thả tim', 'hand hearts', 'hand heart', 'tim', 'hearts',
+    'hộp quà bóng bay', 'balloon gift box', 'buổi sáng tốt lành', 'good morning',
+    'cuối tuần vui vẻ', 'happy weekend', 'hạc giấy', 'paper crane']
+  const nam = ['tay cầm chơi game', 'game controller', 'súng bắn tiền', 'money gun',
+    'gg siêu khủng', 'epic gg', 'mũ và ria mép', 'hat and mustache', 'thiên hà', 'galaxy',
+    'ú òa', 'peeka-bro', 'peeka bro', 'chó corgi', 'corgi']
+  for (const g of nu) assert.equal(giftTeamFor(g), 'A', `${g} phải đẩy Nữ`)
+  for (const g of nam) assert.equal(giftTeamFor(g), 'B', `${g} phải đẩy Nam`)
+  assert.equal(giftTeamFor('gg'), 'B', 'gg cũ vẫn ở Nam, khác gg siêu khủng')
+  assert.equal(giftTeamFor('thả tim cho tôi'), 'B', 'thả tim cho tôi vẫn ở Nam, khác thả tim bên Nữ')
+})
+
+test('QUÀ 100 XU GÁN CỐ ĐỊNH: tặng thử từng món → điểm tăng đúng phe (qua GiftEngine)', () => {
+  const s = freshMatch()
+  const eng = new GiftEngine(s)
+  const a0 = s.roundScore.A || 0, b0 = s.roundScore.B || 0
+  eng.receive({ id: 'g-bh', giftName: 'bó hoa', nickname: 'Hoa', userId: 'hoa' })
+  eng.process(s.now + 1)
+  assert.ok((s.roundScore.A || 0) > a0, 'bó hoa 100 xu phải cộng điểm Nữ')
+  eng.receive({ id: 'g-tc', giftName: 'tay cầm chơi game', nickname: 'Nam', userId: 'nam' })
+  eng.process(s.now + 2)
+  assert.ok((s.roundScore.B || 0) > b0, 'tay cầm chơi game 100 xu phải cộng điểm Nam')
+  const a1 = s.roundScore.A || 0
+  eng.receive({ id: 'g-th', giftName: 'thiên hà', nickname: 'Sao', userId: 'sao' })
+  eng.process(s.now + 3)
+  assert.ok((s.roundScore.B || 0) > b0, 'thiên hà 1000 xu phải cộng điểm Nam')
+  assert.equal(s.roundScore.A || 0, a1, 'thiên hà không được cộng điểm Nữ')
+})
+
+test('ĂN MỪNG QUÀ 100 XU: chỉ phe nhận quà nhảy Cheer 4,5s, phe kia giữ dáng cũ', () => {
+  assert.equal(CELEBRATE_MS, 4500, 'ăn mừng khớp thời gian spotlight 4,5s')
+  assert.equal(POSE_CLIPS[POSE_CELEBRATE], 'Cheer', 'clip ăn mừng là Cheer có sẵn trong GLB')
+  const now = 100000
+  const cel = { team: 'A', until: now + CELEBRATE_MS }
+  assert.equal(isCelebrating(cel, 'A', now), true, 'phe A đang ăn mừng')
+  assert.equal(isCelebrating(cel, 'B', now), false, 'phe B không ăn mừng')
+  assert.equal(poseForSideWithCelebrate(0.6, 'A', cel, now), POSE_CELEBRATE, 'phe A dẫn nhưng ăn mừng thay vì đẩy')
+  assert.equal(poseForSideWithCelebrate(0.6, 'B', cel, now), 'defend', 'phe B thua vẫn phòng thủ')
+  assert.equal(isCelebrating(cel, 'A', now + CELEBRATE_MS), false, 'hết 4,5s thì hết ăn mừng')
+  assert.equal(poseForSideWithCelebrate(0.6, 'A', cel, now + CELEBRATE_MS), 'push', 'hết ăn mừng thì về dáng đẩy theo thế trận')
+  assert.equal(isCelebrating(null, 'A', now), false, 'không có quà 100 xu thì không ăn mừng')
+  assert.equal(isCelebrating({ team: 'B', until: Infinity }, 'B', now), true, 'until vô cực (chụp ảnh) thì ăn mừng liên tục')
+})
+
+test('QUÀ NHỎ KHÔNG ĂN MỪNG: chỉ quà 100 xu mới có spotlight để ăn mừng theo', () => {
+  const s = freshMatch()
+  applyPull(s, 'A', 5, { nickname: 'Nho', userId: 'nho' }, 'quả đào')
+  const fx = s.effects.filter((e) => e.kind === 'gift').pop()
+  assert.equal(fx.spotlight, false, 'quà nhỏ không phải spotlight nên không ăn mừng')
+  applyPull(s, 'B', 100, { nickname: 'Hoa', userId: 'hoa' }, 'bó hoa')
+  const fx2 = s.effects.filter((e) => e.kind === 'gift').pop()
+  assert.equal(fx2.spotlight, true, 'quà 100 xu là spotlight → phe nhận ăn mừng')
+  assert.equal(fx2.team, 'B', 'ăn mừng đúng phe nhận quà (Nam)')
+  assert.equal(fx2.dur, 4.5, 'spotlight/ăn mừng kéo dài 4,5 giây')
 })
 
 

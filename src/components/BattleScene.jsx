@@ -54,7 +54,7 @@ function Blocky({ side, lean }) {
   )
 }
 
-export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA = 0, countB = 0, winsA = 0, winsB = 0, matchWinsA = 0, matchWinsB = 0, round = 1, timeLeft = 60, phase = 'waiting', jolt = null, joltTeam = null, joltId = '' }) {
+export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA = 0, countB = 0, winsA = 0, winsB = 0, matchWinsA = 0, matchWinsB = 0, round = 1, timeLeft = 60, phase = 'waiting', jolt = null, joltTeam = null, joltId = '', celebrateTeam = null, celebrateId = '' }) {
   // Vạch giữa: 50% khi hòa, chạy tới 90,5% khi Nữ thắng hẳn, 9,5% khi Nam thắng hẳn.
   // Tỉ lệ đẩy (ngưỡng thắng chênh 100 điểm): cmt +1 → vạch nhích 0,45% (tí xíu),
   // 100 tim/follow +10 → nhích 4,5%, quà to 100 → vọt 45% tới sát mép.
@@ -117,13 +117,14 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
            Tên GIRL/BOY giữ dạng HTML để luôn đọc được, kể cả khi 3D lỗi.
            Nhãn kẹp trong màn hình (max/min) để vạch chạy tới mép thì tên
            không bị cắt nửa như trước. */}
-      <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} onStatus={(s) => setThreeOk(s === 'ready')} />
+      <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} celebrateTeam={celebrateTeam} celebrateId={celebrateId} onStatus={(s) => setThreeOk(s === 'ready')} />
       {/* Khung nhân vật dự phòng 2D (chỉ hiện khi 3D lỗi) — giữ đáy cũ để
-           nhân vật dự phòng không bị trôi lên. */}
-      <div className="nvb-char-wrap girl" style={plateStyle(fracs.girl)}>
+           nhân vật dự phòng không bị trôi lên. Phe nhận quà 100 xu cũng
+           nhảy ăn mừng (CSS) cho giống bản 3D. */}
+      <div className={`nvb-char-wrap girl${celebrateTeam === 'A' ? ' nvb-celebrating' : ''}`} style={plateStyle(fracs.girl)}>
         {!threeOk && <Blocky side="girl" lean={girlLean} />}
       </div>
-      <div className="nvb-char-wrap boy" style={plateStyle(fracs.boy)}>
+      <div className={`nvb-char-wrap boy${celebrateTeam === 'B' ? ' nvb-celebrating' : ''}`} style={plateStyle(fracs.boy)}>
         {!threeOk && <Blocky side="boy" lean={boyLean} />}
       </div>
       {/* Nhãn GIRL/BOY đứng RIÊNG (không nằm trong khung nhân vật nữa):

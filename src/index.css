@@ -760,6 +760,10 @@ input, select { font-family: inherit; }
 .nvb-3d canvas { width: 100%; height: 100%; display: block; }
 .nvb-3d.nvb-shake-hard { animation: nvb-shake-hard .45s linear; }
 .nvb-3d.nvb-shake-soft { animation: nvb-shake-soft .3s linear; }
+/* Ăn mừng quà 100 xu (chỉ nhân vật dự phòng 2D — bản 3D dùng clip Cheer +
+   đèn vàng trong ThreeFighters): nhảy lên xuống + phát sáng vàng. */
+.nvb-char-wrap.nvb-celebrating .nvb-char { animation: nvb-cheer .6s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255, 201, 77, .95)); }
+@keyframes nvb-cheer { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(-3deg); } }
 
 /* ── NAM vs NỮ: rung theo tỉ lệ đẩy ───────────────────────────────────────
    Quà TO (100 điểm) → rung mạnh + nhân vật bị đẩy ngửa thêm (xem lean trong

@@ -96,6 +96,14 @@ export const GIFT_TEAM = {
   'quả đào': 'A', peach: 'A',
   'hạc giấy': 'A', 'paper crane': 'A',
   'bánh vòng': 'A', 'cheese donuts': 'A',
+  // Quà 100 xu gán cố định (lệnh tấn 2026-11-21 19:12): quà 100 xu nào
+  // cũng có phe cố định để ăn mừng đúng phe, không còn về phe thua.
+  'bó hoa': 'A', bouquet: 'A',
+  'thả tim': 'A', 'hand hearts': 'A', 'hand heart': 'A',
+  'tim': 'A', hearts: 'A',
+  'hộp quà bóng bay': 'A', 'balloon gift box': 'A',
+  'buổi sáng tốt lành': 'A', 'good morning': 'A',
+  'cuối tuần vui vẻ': 'A', 'happy weekend': 'A',
   // Nam (BOY, phải, xanh)
   tiktok: 'B',
   gg: 'B',
@@ -109,6 +117,15 @@ export const GIFT_TEAM = {
   'trái bóng xoáy': 'B',
   'bắn tim': 'B', 'finger heart': 'B',
   ok: 'B',
+  // Quà 100 xu gán cố định phe Nam (19:12): 'gg siêu khủng' khác với 'gg'
+  // (đã ở Nam); 'thả tim cho tôi' đã ở Nam, khác với 'thả tim' bên Nữ.
+  'tay cầm chơi game': 'B', 'game controller': 'B',
+  'súng bắn tiền': 'B', 'money gun': 'B',
+  'gg siêu khủng': 'B', 'epic gg': 'B',
+  'mũ và ria mép': 'B', 'hat and mustache': 'B',
+  'thiên hà': 'B', galaxy: 'B',
+  'ú òa': 'B', 'peeka-bro': 'B', 'peeka bro': 'B',
+  'chó corgi': 'B', corgi: 'B',
   // Nước hoa (20 xu) → NAM từ 2026-11-21 (trước đó để bên Nữ, sửa lại
   // theo lệnh tấn: quà tầm 20–30 xu thì Nước hoa đẩy Nam, Bánh vòng đẩy Nữ).
   'nước hoa': 'B', perfume: 'B',

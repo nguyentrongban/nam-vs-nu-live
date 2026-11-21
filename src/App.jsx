@@ -94,6 +94,13 @@ function DisplayGame() {
   const jolt = giftFx ? (giftFx.big ? 'big' : 'small') : (likeFx ? 'tiny' : null)
   const joltTeam = (giftFx || likeFx)?.team || null
   const joltId = (giftFx || likeFx)?.id || ''
+  // Ăn mừng quà 100 xu: phe nhận spotlight (team + id của hiệu ứng) nhảy
+  // clip Cheer + phát sáng vàng 4,5s, khớp thời gian spotlight. Phe còn
+  // lại giữ dáng cũ. ?celebrate=a|b — khóa ăn mừng liên tục để chụp ảnh
+  // kiểm tra (không ảnh hưởng luật chơi, không có param thì theo spotlight).
+  const celebrateParam = new URLSearchParams(window.location.search).get('celebrate')
+  const celebrateTeam = celebrateParam === 'a' ? 'A' : celebrateParam === 'b' ? 'B' : (spotFx?.team || null)
+  const celebrateId = celebrateParam ? 'perm' : (spotFx?.id || '')
   const bxh = s?.bxh || { gifters: [], likers: [] }
   const hasBxh = (bxh.gifters?.length || 0) > 0 || (bxh.likers?.length || 0) > 0
   const winnerName = (teamId) => (teamId === 'A' ? 'GIRL' : 'BOY')
@@ -109,6 +116,7 @@ function DisplayGame() {
           matchWinsA={s?.matchWins?.A || 0} matchWinsB={s?.matchWins?.B || 0}
           round={s?.round || 1} timeLeft={s?.roundTimeLeft || 0} phase={phase}
           jolt={jolt} joltTeam={joltTeam} joltId={joltId}
+          celebrateTeam={celebrateTeam} celebrateId={celebrateId}
         />
 
         {/* Nút tiếng + hướng dẫn (góc trên, không che pill điểm) */}
@@ -275,7 +283,7 @@ function DisplayGame() {
           <div className="pml-guide">
             <button className="pml-guide-x" onClick={() => setGuideOpen(false)} aria-label="Đóng hướng dẫn"><X size={18} /></button>
             <h3><BookOpen size={17} /> CÁCH CHƠI</h3>
-            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
+            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Quà 100 xu cũng gán cố định: bó hoa, thả tim, tim, hộp quà, buổi sáng, cuối tuần → <b>Nữ</b>; tay cầm, súng tiền, GG siêu khủng, mũ ria mép, thiên hà, ú òa, corgi → <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
             <p><Zap size={14} /> Vạch giữa chạy theo chênh lệch điểm — phe nào mạnh hơn sẽ đẩy phe kia qua. Chạm mép bên kia là thắng màn ngay. Hết 60 giây thì phe điểm cao hơn thắng.</p>
             <p><Heart size={14} fill="currentColor" /> Thả tim — <b>mỗi người thả đủ 100 tim thì +10 cho Nữ</b> (tối đa +60/màn). Tim không đẩy cho Nam.</p>
             <p><Users size={14} /> Theo dõi — <b>1 lượt follow = +10 cho Nam</b> (tối đa +60/màn).</p>
