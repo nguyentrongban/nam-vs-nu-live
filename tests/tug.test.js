@@ -5,6 +5,8 @@
 // điểm theo giá 1/5/10/25/100) · 100 tim/người → +10 Nữ · 1 follow → +10 Nam ·
 // cmt boy/nam +1 Nam, girl/nữ +1 Nữ (đẩy ngay, không vào đội, không +1 theo người).
 import assert from 'node:assert'
+import { existsSync } from 'node:fs'
+import { giftImageSrc, giftImageForPower } from '../src/game/giftImages.js'
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
@@ -1149,10 +1151,10 @@ test('VỊ TRÍ 3D: mỗi người cách vạch giữa đúng CHAR_OFFSET, khôn
   assert.ok(boyX - girlX >= 1.5, 'tâm 2 người cách nhau ≥ 1,5m — mặt không chạm nhau')
   assert.deepEqual(fighterWorldPositions(NaN, halfW), fighterWorldPositions(50, halfW), 'divider rác thì coi như giữa')
 })
-test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/follow/cmt + 2 dòng rộng quà 100 xu, đúng luật 17:51 + 19:25', () => {
+test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/follow/cmt + 2 dòng rộng quà 100 xu BẰNG ICON, đúng luật 17:51 + 19:25 + 19:42', () => {
   assert.equal(GUIDE_ROWS.length, 9, '4 dòng quà + 3 dòng tương tác + 2 dòng rộng 100 xu')
   assert.deepEqual(GUIDE_ROWS.map((r) => r.side), ['A', 'B', 'B', 'A', 'A', 'B', null, 'A', 'B'])
-  const text = GUIDE_ROWS.map((r) => (r.wide && r.label ? `${r.label} ${r.list}` : `${r.left} → ${r.right}`)).join(' | ')
+  const text = GUIDE_ROWS.map((r) => (r.wide && r.label ? `${r.label} ${(r.gifts || []).join(' ')}` : `${r.left} → ${r.right}`)).join(' | ')
   assert.ok(text.includes('Hoa hồng → Nữ'), 'hoa hồng → Nữ')
   assert.ok(text.includes('Quà TikTok → Nam'), 'quà TikTok → Nam')
   assert.ok(text.includes('Nước hoa → Nam'), 'nước hoa → Nam (chuyển phe 17:51)')
@@ -1165,7 +1167,8 @@ test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/foll
   }
   for (const r of GUIDE_ROWS) {
     assert.ok(!('icon' in r), 'không còn icon emoji chung chung')
-    if (r.wide && r.label) assert.ok(r.label && r.list, 'dòng rộng 100 xu có nhãn + danh sách')
+    assert.ok(!('list' in r), 'không còn dòng ghi chữ tên món (19:42: dùng icon)')
+    if (r.wide && r.label) assert.ok(r.label && Array.isArray(r.gifts) && r.gifts.length === 7, 'dòng rộng 100 xu có nhãn + 7 tên quà để render icon')
     else assert.ok(r.left && r.right, 'mỗi dòng có chữ')
   }
   for (const r of GUIDE_ROWS.slice(4, 7)) assert.ok(r.lucide, 'dòng tương tác dùng icon UI của game')
@@ -1174,10 +1177,23 @@ test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/foll
   assert.equal(wide.length, 2, '2 dòng rộng quà 100 xu')
   assert.equal(wide[0].side, 'A')
   assert.equal(wide[1].side, 'B')
-  const girl100 = ['Bó hoa', 'Thả tim', 'Tim', 'Hộp quà', 'Buổi sáng', 'Cuối tuần', 'Hạc giấy']
-  const boy100 = ['Tay cầm', 'Súng tiền', 'GG siêu khủng', 'Mũ ria mép', 'Thiên hà', 'Ú òa', 'Corgi']
-  for (const name of girl100) assert.ok(wide[0].list.includes(name), `100 xu Nữ có ${name}`)
-  for (const name of boy100) assert.ok(wide[1].list.includes(name), `100 xu Nam có ${name}`)
+  const girl100 = ['bó hoa', 'thả tim', 'tim', 'hộp quà bóng bay', 'buổi sáng tốt lành', 'cuối tuần vui vẻ', 'hạc giấy']
+  const boy100 = ['tay cầm chơi game', 'súng bắn tiền', 'gg siêu khủng', 'mũ và ria mép', 'thiên hà', 'ú òa', 'chó corgi']
+  assert.deepEqual(wide[0].gifts, girl100, '100 xu Nữ đủ 7 món')
+  assert.deepEqual(wide[1].gifts, boy100, '100 xu Nam đủ 7 món')
+  // Mỗi món trong 2 dòng rộng phải có icon quà TikTok thật (đúng tên, hoặc
+  // ảnh cùng bậc lực power=100 nếu chưa có ảnh đúng tên) và file phải tồn tại.
+  for (const r of wide) {
+    for (const g of r.gifts) {
+      const src = giftImageSrc(g) || giftImageForPower(100)
+      assert.ok(src.startsWith('/gifts/') && src.endsWith('.webp'), `${g} có icon webp thật`)
+      assert.ok(existsSync(new URL(`../public${src}`, import.meta.url)), `${g} file icon tồn tại: ${src}`)
+    }
+  }
+  // 2 món chưa có ảnh đúng tên dùng ảnh cùng bậc lực (hạc giấy, power 100).
+  assert.equal(giftImageSrc('buổi sáng tốt lành'), null, 'buổi sáng tốt lành chưa có ảnh đúng tên')
+  assert.equal(giftImageSrc('cuối tuần vui vẻ'), null, 'cuối tuần vui vẻ chưa có ảnh đúng tên')
+  assert.equal(giftImageForPower(100), '/gifts/paper_crane.webp', 'ảnh thay thế cùng bậc 100 lực = hạc giấy')
   // Đối chiếu bảng phe: mỗi món trong 2 dòng rộng phải về đúng phe đó.
   assert.equal(giftTeamFor('bó hoa'), 'A')
   assert.equal(giftTeamFor('thả tim'), 'A')

@@ -157,7 +157,9 @@ function DisplayGame() {
           <div className="nvb-guide" aria-label="Cách chơi" ref={guideRef}>
             {GUIDE_ROWS.map((r, i) => r.wide ? (
               <span key={i} className={`nvb-guide-cell wide ${r.center ? 'center' : ''} ${r.side === 'A' ? 'pink' : r.side === 'B' ? 'blue' : 'both'}`}>
-                {r.label ? (
+                {r.gifts ? (
+                  <><span className="nvb-guide-ic" aria-hidden="true">💯</span><span className="nvb-guide-100"><b>{r.label}</b><span className="nvb-guide-icons">{r.gifts.map((g) => <GiftIcon key={g} gift={g} power={100} size={22} />)}</span></span></>
+                ) : r.label ? (
                   <><span className="nvb-guide-ic" aria-hidden="true">💯</span><span><b>{r.label}</b> {r.list}</span></>
                 ) : (
                   <><span className="nvb-guide-ic" aria-hidden="true"><GuideIcon row={r} /></span><span>{r.left} <b>→ {r.right}</b></span></>

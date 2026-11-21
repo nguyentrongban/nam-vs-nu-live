@@ -724,7 +724,7 @@ input, select { font-family: inherit; }
    (font 12, padding 5px) để thêm 2 dòng quà 100 xu mà đáy bảng vẫn trên
    pill TEAM: bảng kết thúc ~251px, pill TEAM neo ngay dưới đáy bảng
    (xem --nvb-guide-bottom). 6 dòng gọn + cmt + 2 dòng 100 xu (mỗi dòng
-   100 xu 2 hàng chữ, font 11). */
+   100 xu: nhãn + 7 icon quà TikTok thật 22px, tự xuống dòng nếu chật). */
 .nvb-guide {
   position: absolute; top: calc(100px + env(safe-area-inset-top)); left: 10px; right: 10px; z-index: 6;
   display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px;
@@ -739,6 +739,12 @@ input, select { font-family: inherit; }
 .nvb-guide-cell.center { justify-content: center; }
 .nvb-guide-ic { font-size: 15px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; }
 .nvb-guide-ic img { width: 16px; height: 16px; object-fit: contain; display: block; }
+/* Dòng quà 100 xu: nhãn + dãy icon quà TikTok thật (22px), tự xuống dòng
+   trong bảng nếu không vừa 1 hàng; icon nào cũng là ảnh thật từ
+   public/gifts/ (GiftIcon + giftImages.js), không ghi tên món bằng chữ. */
+.nvb-guide-100 { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; flex: 1; min-width: 0; }
+.nvb-guide-icons { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.nvb-guide-icons img { width: 22px; height: 22px; object-fit: contain; display: block; }
 .nvb-guide-ic svg { flex: none; display: block; }
 .nvb-guide-cell b { font-weight: 900; }
 .nvb-guide-cell.pink b { color: #ffc7e0; }
