@@ -388,6 +388,19 @@ test('chỉ 3 người mới nhất/đội hiện ra trên sân (còn lại vẫ
   assert.equal(visibleMembers(s, 'A', 3).length, 3)
   assert.equal(visibleMembers(s, 'B', 3).length, 0, 'đội trống thì không có ai')
 })
+test('adapter: event quà đúng dạng connector gửi (avatar top-level) → giữ avatar + tên quà', () => {
+  // Connector tick-tock (who() + pickAvatarUrl, commit 0ebcbf2c) gửi event
+  // quà dạng { type:'gift', nickname, userId, avatar, giftName, ... } —
+  // adapter phải giữ nguyên avatar để hiệu ứng 100 xu hiện ảnh thật.
+  const ev = normalizeEvent({ type: 'gift', nickname: 'Hoa', userId: 'hoa1', avatar: 'https://cdn.example.com/h.jpg', giftName: 'bó hoa', diamondCount: 100 })
+  assert.equal(ev.kind, 'gift')
+  assert.equal(ev.avatar, 'https://cdn.example.com/h.jpg', 'avatar top-level của connector phải qua được adapter')
+  assert.equal(ev.giftName, 'bó hoa')
+  assert.equal(ev.nickname, 'Hoa')
+  const noAv = normalizeEvent({ type: 'gift', nickname: 'Nam', userId: 'nam1', giftName: 'hoa hồng' })
+  assert.equal(noAv.avatar, '', 'không có avatar thì để trống để UI vẽ vòng tròn chữ cái')
+})
+
 test('adapter lấy ảnh đại diện từ event (trực tiếp + lồng trong user)', () => {
   const direct = normalizeEvent({ type: 'chat', comment: 'A', nickname: 'Lan', uniqueId: 'lan', profilePictureUrl: 'https://cdn.example.com/a.jpg' })
   assert.equal(direct.kind, 'chat')
@@ -1209,6 +1222,19 @@ test('QUÀ NƯỚC HOA → điểm Nam tăng; BÁNH VÒNG → điểm Nữ tăng
   eng.receive({ id: 'g-bv', giftName: 'bánh vòng', nickname: 'Banh', userId: 'banh' })
   eng.process(s.now + 2)
   assert.ok((s.roundScore.A || 0) > beforeA, 'bánh vòng phải cộng điểm Nữ')
+})
+
+test('QUÀ CÓ AVATAR → hiệu ứng quà mang avatar sang spotlight (đường dữ liệu đầy đủ)', () => {
+  const s = freshMatch()
+  const eng = new GiftEngine(s)
+  eng.receive({ id: 'g-av', giftName: 'bó hoa', nickname: 'Hoa', userId: 'hoa', avatar: 'https://cdn.example.com/h.jpg' })
+  eng.process(s.now + 1)
+  const fx = s.effects.filter((e) => e.kind === 'gift').pop()
+  assert.ok(fx, 'phải có hiệu ứng gift')
+  assert.equal(fx.spotlight, true, 'bó hoa 100 xu là spotlight')
+  assert.equal(fx.avatar, 'https://cdn.example.com/h.jpg', 'avatar phải đi từ event quà tới hiệu ứng')
+  assert.equal(fx.sender, 'Hoa')
+  assert.equal(fx.gift, 'bó hoa')
 })
 
 test('SPOTLIGHT Ở LẠI ĐỦ 4,5 GIÂY: quà nhỏ tới sau không xóa hiệu ứng spotlight', () => {

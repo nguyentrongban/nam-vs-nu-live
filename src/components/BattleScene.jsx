@@ -72,8 +72,9 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
     return () => window.removeEventListener('resize', onResize)
   }, [])
   const fracs = fighterFractions(divider, aspect)
-  // Nhãn rộng 122px → tâm nhãn = vị trí nhân vật, kẹp 6px mỗi mép.
+  // Nhãn rộng ~54px → tâm nhãn = vị trí nhân vật, kẹp 6px mỗi mép.
   const plateStyle = (f) => ({ left: `clamp(6px, calc(${f * 100}% - 61px), calc(100% - 128px))` })
+  const plateLabelStyle = (f) => ({ left: `clamp(6px, calc(${f * 100}% - 27px), calc(100% - 60px))` })
   // Nghiêng người (chỉ dùng cho nhân vật blocky dự phòng): thua thì ngả về
   // sau. Quà TO (jolt big) thì phe bị đẩy ngửa thêm 14° + rung màn hình
   // mạnh; quà nhỏ rung nhẹ; cmt/tim chỉ nhích vạch (không rung).
@@ -117,14 +118,20 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
            Nhãn kẹp trong màn hình (max/min) để vạch chạy tới mép thì tên
            không bị cắt nửa như trước. */}
       <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} onStatus={(s) => setThreeOk(s === 'ready')} />
+      {/* Khung nhân vật dự phòng 2D (chỉ hiện khi 3D lỗi) — giữ đáy cũ để
+           nhân vật dự phòng không bị trôi lên. */}
       <div className="nvb-char-wrap girl" style={plateStyle(fracs.girl)}>
         {!threeOk && <Blocky side="girl" lean={girlLean} />}
-        <div className="nvb-nameplate">GIRL</div>
       </div>
       <div className="nvb-char-wrap boy" style={plateStyle(fracs.boy)}>
         {!threeOk && <Blocky side="boy" lean={boyLean} />}
-        <div className="nvb-nameplate">BOY</div>
       </div>
+      {/* Nhãn GIRL/BOY đứng RIÊNG (không nằm trong khung nhân vật nữa):
+           đặt cao hơn (bottom 29%, ngay dưới chân nhân vật 3D) và nổi trên
+           hộp BXH (z 7 > z 6) — trước đây nhãn nằm trong khung ở bottom
+           22% nên hộp BXH mọc cao dần đã đè lên nhãn ở hàng 2. */}
+      <div className="nvb-nameplate girl" style={plateLabelStyle(fracs.girl)}>GIRL</div>
+      <div className="nvb-nameplate boy" style={plateLabelStyle(fracs.boy)}>BOY</div>
 
       {/* Pill điểm trên cùng — giống ảnh mẫu: [số đen] + GIRL hồng / BOY xanh + [số đen] */}
       <div className="nvb-topbar">

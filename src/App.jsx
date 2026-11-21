@@ -75,7 +75,6 @@ function DisplayGame() {
   const previewRope = poseParam === 'a' ? 0.6 : poseParam === 'b' ? -0.6 : poseParam === 'idle' ? 0 : null
   const teamA = s?.teams?.A
   const teamB = s?.teams?.B
-  const roundTimeLeft = s ? Math.max(0, Math.ceil(s.roundTimeLeft || 0)) : 0
   // Điểm hiển thị: tổng lực quà + số người vào phe (vào phe là +1 điểm ngay).
   // Điểm hiển thị = ĐIỂM MÀN (chỉ cộng lên, reset 0-0 mỗi màn).
   const scoreA = Math.round(s?.roundScore?.A || 0)
@@ -89,6 +88,9 @@ function DisplayGame() {
   // Hiệu ứng đẩy theo tỉ lệ (luật chốt 14:58): quà to → rung mạnh + nhân
   // vật bị đẩy ngửa thêm; quà nhỏ → rung nhẹ; tim/follow → chỉ nhích vạch.
   const likeFx = (s?.effects || []).filter((e) => e.kind === 'like' || e.kind === 'follow').pop()
+  // LẬT KÈO + tim: dùng cho cột hiệu ứng giữa màn (xem .nvb-fxstack).
+  const flipFx = (s?.effects || []).find((e) => e.kind === 'flip')
+  const likeOnlyFx = (s?.effects || []).filter((e) => e.kind === 'like').pop()
   const jolt = giftFx ? (giftFx.big ? 'big' : 'small') : (likeFx ? 'tiny' : null)
   const joltTeam = (giftFx || likeFx)?.team || null
   const joltId = (giftFx || likeFx)?.id || ''
@@ -138,65 +140,70 @@ function DisplayGame() {
           <div className="pml-countdown">{countdown > 0 ? countdown : 'ĐẨY!'}</div>
         )}
 
-        {/* Lật kèo */}
-        {phase === 'pulling' && (s?.effects || []).some((e) => e.kind === 'flip') && (
-          <div className="pml-flip">LẬT KÈO! {(s.effects.find((e) => e.kind === 'flip') || {}).sender || 'Ai đó'} 1 món quà cân cả phe kia!</div>
-        )}
-
-        {/* Tim cộng giờ */}
-        {phase === 'pulling' && (s?.effects || []).some((e) => e.kind === 'like') && (
-          <div className="pml-timeflash"><Heart size={15} fill="currentColor" /> +10 lực kéo!</div>
-        )}
-
-        {/* Ai vào xem / theo dõi / chia sẻ: 2 giây */}
-        {toastFx && (
-          <div className="pml-toast" key={toastFx.id}>{toastFx.text}</div>
-        )}
-
-        {/* Hiệu ứng tặng quà: nhỏ 2s, to (≥25) tên vàng + pháo hoa 3,5s,
-             100 xu trở lên = spotlight giữa màn 4,5s (tên + avatar + vòng
-             tim hồng, không che pill điểm/WIN/LIVE, tự mất sau 4,5 giây).
-             Spotlight lấy từ spotFx (hiệu ứng spotlight mới nhất) để quà
-             nhỏ tới sau không cắt ngang 4,5 giây của nó — 2 hiệu ứng hiện
-             cùng lúc ở 2 vị trí khác nhau (spotlight giữa màn, quà nhỏ ở
-             trên), không chồng nhau. */}
-        {spotFx && (
-          <div className="nvb-spot" key={spotFx.id}>
-            <div className="nvb-spot-ring">
-              <SpotAvatar avatar={spotFx.avatar} name={spotFx.sender} team={spotFx.team} />
-              <span className="nvb-spot-heart h1"><Heart size={16} fill="currentColor" /></span>
-              <span className="nvb-spot-heart h2"><Heart size={14} fill="currentColor" /></span>
-              <span className="nvb-spot-heart h3"><Heart size={14} fill="currentColor" /></span>
-              <span className="nvb-spot-heart h4"><Heart size={16} fill="currentColor" /></span>
-              <span className="nvb-spot-heart h5"><Heart size={14} fill="currentColor" /></span>
-              <span className="nvb-spot-heart h6"><Heart size={14} fill="currentColor" /></span>
-            </div>
-            <div className="nvb-spot-name">{spotFx.sender}</div>
-            <div className="nvb-spot-sub">tặng {spotFx.gift || 'quà 100 xu'} · <Zap size={13} /> {Math.round(spotFx.power)} điểm</div>
+        {/* ── Cột hiệu ứng giữa màn: 3 khe cố định xếp dọc, không đè nhau ──
+             Khe 1: toast vào xem/follow/chia sẻ (hoặc tim +10 nếu không có
+             toast). Khe 2: quà — spotlight 100 xu ưu tiên nhất, rồi tên
+             quà to (pháo hoa), rồi quà nhỏ. Khe 3: LẬT KÈO ở dưới cùng.
+             Cột bắt đầu ngay dưới bảng hướng dẫn (278px) nên không che
+             bảng; vòng spotlight nằm đúng khe giữa 2 mặt nhân vật; LẬT
+             KÈO ở dưới nên không che mặt. Khe trống vẫn giữ chỗ nên hiệu
+             ứng hiện/mất không làm các hiệu ứng khác nhảy lên xuống. */}
+        <div className="nvb-fxstack">
+          <div className="nvb-fxslot pill">
+            {toastFx ? (
+              <div className="pml-toast" key={toastFx.id}>{toastFx.text}</div>
+            ) : likeOnlyFx ? (
+              <div className="pml-timeflash"><Heart size={15} fill="currentColor" /> +10 lực kéo!</div>
+            ) : null}
           </div>
-        )}
-        {giftFx && !giftFx.spotlight && !giftFx.big && (
-          <div className="pml-gift" key={giftFx.id}>
-            <div className="pml-gift-box">
-              <span className="pml-gift-sticker"><GiftIcon gift={giftFx.gift} size={40} /></span>
-              <span className="pml-gift-spark"><Sparkles size={22} /></span>
-            </div>
-            <div className="pml-gift-name">{giftFx.sender}</div>
-            <div className="pml-gift-sub">tặng {giftFx.gift || 'quà'} · <Zap size={13} /> {Math.round(giftFx.power)} điểm</div>
+          <div className="nvb-fxslot gift">
+            {spotFx ? (
+              <div className="nvb-spot" key={spotFx.id}>
+                <div className="nvb-spot-ring">
+                  <SpotAvatar avatar={spotFx.avatar} name={spotFx.sender} team={spotFx.team} />
+                  <span className="nvb-spot-heart h1"><Heart size={16} fill="currentColor" /></span>
+                  <span className="nvb-spot-heart h2"><Heart size={14} fill="currentColor" /></span>
+                  <span className="nvb-spot-heart h3"><Heart size={14} fill="currentColor" /></span>
+                  <span className="nvb-spot-heart h4"><Heart size={16} fill="currentColor" /></span>
+                  <span className="nvb-spot-heart h5"><Heart size={14} fill="currentColor" /></span>
+                  <span className="nvb-spot-heart h6"><Heart size={14} fill="currentColor" /></span>
+                </div>
+                <div className="nvb-spot-name">{spotFx.sender}</div>
+                <div className="nvb-spot-sub">tặng {spotFx.gift || 'quà 100 xu'} · <Zap size={13} /> {Math.round(spotFx.power)} điểm</div>
+              </div>
+            ) : giftFx && giftFx.big ? (
+              <div className="pml-fireworks-name" key={giftFx.id}>
+                <div className="fw-crown"><Sparkles size={26} /> <GiftIcon gift={giftFx.gift} size={56} className="fw-gift-ic" /></div>
+                <div className="fw-name">{giftFx.sender}</div>
+                <div className="fw-sub">tặng {giftFx.gift || 'quà to'} · <Zap size={14} /> {Math.round(giftFx.power)} điểm!</div>
+              </div>
+            ) : giftFx ? (
+              <div className="pml-gift" key={giftFx.id}>
+                <div className="pml-gift-box">
+                  <span className="pml-gift-sticker"><GiftIcon gift={giftFx.gift} size={40} /></span>
+                  <span className="pml-gift-spark"><Sparkles size={22} /></span>
+                </div>
+                <div className="pml-gift-name">{giftFx.sender}</div>
+                <div className="pml-gift-sub">tặng {giftFx.gift || 'quà'} · <Zap size={13} /> {Math.round(giftFx.power)} điểm</div>
+              </div>
+            ) : null}
           </div>
-        )}
-        {giftFx && !giftFx.spotlight && giftFx.big && (
-          <div className="pml-fireworks" key={giftFx.id}>
+          <div className="nvb-fxslot flip">
+            {phase === 'pulling' && flipFx ? (
+              <div className="pml-flip">LẬT KÈO! {flipFx.sender || 'Ai đó'} 1 món quà cân cả phe kia!</div>
+            ) : null}
+          </div>
+        </div>
+        {/* Tia pháo hoa (chỉ tia nổ, không chữ) phủ toàn màn khi quà to —
+             chữ tên người tặng nằm trong khe quà của cột hiệu ứng, không
+             đè lên spotlight hay LẬT KÈO. */}
+        {giftFx && giftFx.big && !giftFx.spotlight && (
+          <div className="pml-fireworks" key={`fw-${giftFx.id}`}>
             <span className="fw-burst fw-1" />
             <span className="fw-burst fw-2" />
             <span className="fw-burst fw-3" />
             <span className="fw-burst fw-4" />
             <span className="fw-burst fw-5" />
-            <div className="pml-fireworks-name">
-              <div className="fw-crown"><Sparkles size={26} /> <GiftIcon gift={giftFx.gift} size={56} className="fw-gift-ic" /></div>
-              <div className="fw-name">{giftFx.sender}</div>
-              <div className="fw-sub">tặng {giftFx.gift || 'quà to'} · <Zap size={14} /> {Math.round(giftFx.power)} điểm!</div>
-            </div>
           </div>
         )}
 
@@ -268,7 +275,7 @@ function DisplayGame() {
           <div className="pml-guide">
             <button className="pml-guide-x" onClick={() => setGuideOpen(false)} aria-label="Đóng hướng dẫn"><X size={18} /></button>
             <h3><BookOpen size={17} /> CÁCH CHƠI</h3>
-            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng, rosa, cỏ bốn lá, nước hoa, quả đào, hạc giấy → đẩy <b>Nữ</b>; quà TikTok, kem ốc quế, bing chilling, nhạc, gg → đẩy <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
+            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
             <p><Zap size={14} /> Vạch giữa chạy theo chênh lệch điểm — phe nào mạnh hơn sẽ đẩy phe kia qua. Chạm mép bên kia là thắng màn ngay. Hết 60 giây thì phe điểm cao hơn thắng.</p>
             <p><Heart size={14} fill="currentColor" /> Thả tim — <b>mỗi người thả đủ 100 tim thì +10 cho Nữ</b> (tối đa +60/màn). Tim không đẩy cho Nam.</p>
             <p><Users size={14} /> Theo dõi — <b>1 lượt follow = +10 cho Nam</b> (tối đa +60/màn).</p>
@@ -277,11 +284,12 @@ function DisplayGame() {
           </div>
         )}
 
-        {/* Thanh dưới */}
+        {/* Thanh dưới — CHỈ 1 hàng (3 ô) để hộp BXH hạ xuống đáy (60px)
+             không cắt vào hàng nào: ô "Màn · giây" bỏ vì dòng MÀN trên
+             cùng đã hiện đủ; ô điểm rút gọn "Nữ 310 · Nam 226". */}
         <div className="pml-bottombar">
-          <span><Users size={14} /> Nữ {scoreA} điểm · Nam {scoreB} điểm</span>
+          <span><Users size={14} /> Nữ {scoreA} · Nam {scoreB}</span>
           <span><Heart size={14} fill="currentColor" /> {s?.likes || 0}</span>
-          <span>Màn {s?.round || 1} · {phase === 'pulling' ? `${roundTimeLeft}s` : phase === 'countdown' ? '…' : '—'}</span>
           <span>{connected ? <><span className="pml-dot on sm" /> Đã nối live</> : <><span className="pml-dot sm" /> Chưa nối live</>}</span>
         </div>
       </div>
