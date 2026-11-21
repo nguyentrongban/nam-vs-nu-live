@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { POSE_CLIPS, POSE_DEFEND, POSE_IDLE, POSE_PUSH, glbUrlsFor, KEEP_ACCESSORIES, poseForSide } from '../game/poses.js'
+import { CHAR_HEIGHT, VISIBLE_HALF_H, fighterWorldPositions } from '../game/stage3d.js'
 
 // Phụ kiện gắn sẵn trong GLB KayKit (tên node). Chỉ giữ lại những cái trong
 // KEEP_ACCESSORIES, còn lại ẩn hết.
@@ -25,9 +26,6 @@ const ACCESSORY_NAMES = new Set([
 ])
 
 const LOAD_TIMEOUT_MS = 20000
-const CHAR_HEIGHT = 1.55 // scale nhân vật về cao 1,55m
-const VISIBLE_HALF_H = 2.5 // nửa chiều cao khung nhìn (nhân vật ≈ 31% chiều cao màn)
-const CHAR_OFFSET = 0.62 // khoảng cách mỗi nhân vật tới vạch giữa (đứng xa nhau, không chạm mặt)
 
 function pickClip(gltf, pose) {
   const name = POSE_CLIPS[pose]
@@ -198,18 +196,11 @@ export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, jol
       raf = requestAnimationFrame(tick)
       const dt = Math.min(clock.getDelta(), 0.05)
       const { rope: r, divider: d } = propsRef.current
-      // Vị trí: 2 nhân vật luôn cách nhau 2×CHAR_OFFSET quanh vạch giữa.
-      // Khiên/kiếm chìa sang 2 bên ~0,55 nên khoảng cách này mới không rối
-      // vào nhau. Khi vạch chạy tới mép thì trượt CẢ CẶP vào trong (giữ
-      // nguyên khoảng cách), không kẹp từng người (kẹp riêng là 2 đứa dính
-      // vào nhau như ảnh chụp lỗi trước đó).
+      // Vị trí: 2 nhân vật luôn cách nhau 2×CHAR_OFFSET quanh vạch giữa
+      // (xem src/game/stage3d.js — BattleScene dùng chung công thức này để
+      // đặt nhãn GIRL/BOY nên nhãn không bao giờ lệch khỏi nhân vật).
+      const { girlX, boyX } = fighterWorldPositions(d, halfW)
       const divX = (d / 100 - 0.5) * 2 * halfW
-      const minX = -halfW + 0.32
-      const maxX = halfW - 0.32
-      let girlX = divX - CHAR_OFFSET
-      let boyX = divX + CHAR_OFFSET
-      if (boyX > maxX) { const s = boyX - maxX; girlX -= s; boyX -= s }
-      if (girlX < minX) { const s = minX - girlX; girlX += s; boyX += s }
       if (typeof window !== 'undefined') {
         window.__fighterPos = { girlX, boyX, halfW, divX, divider: d }
       }

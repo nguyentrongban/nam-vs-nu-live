@@ -697,6 +697,16 @@ export function useTugOfWar() {
     // BXH): hoa hồng/rosa/nước hoa/hạc giấy → Nữ; tiktok/bing chilling/
     // kem ốc quế/gg → Nam.
     const demoGifts = ['hoa hồng', 'tiktok', 'quả đào', 'bing chilling', 'rosa', 'trái bóng xoáy', 'cỏ bốn lá', 'bắn tim']
+    // Quà 100 xu mẫu (Bó hoa) 2 lần mỗi lượt demo — để xem hiệu ứng lớn
+    // giữa màn (tên + avatar + vòng tim, 4,5 giây). Không cho vào vòng
+    // quà thường vì 100 lực/lần sẽ kết màn quá nhanh.
+    const demoSpotlightAt = (n) => {
+      if (n !== 14 && n !== 42) return
+      engineRef.current.receive({
+        id: `demo-gift-100-${n}`, giftName: 'bó hoa',
+        nickname: 'Hoa Thử', userId: 'demo-g2', text: '', province: '',
+      })
+    }
     const demoGifters = [
       { nickname: 'Bạn Tặng Thử', userId: 'demo-g1' },
       { nickname: 'Hoa Thử', userId: 'demo-g2' },
@@ -729,6 +739,7 @@ export function useTugOfWar() {
       }
       if (s.phase === 'pulling') {
         n++
+        demoSpotlightAt(n)
         // Mỗi nhịp tặng 1 món quà thật xen kẽ 2 phe (vạch giữa chạy theo).
         const g = demoGifters[n % demoGifters.length]
         const giftName = demoGifts[n % demoGifts.length]

@@ -7,8 +7,9 @@
 // về lại 2 nhân vật blocky 2D tự vẽ (dự phòng, không bao giờ màn trắng).
 // Vạch giữa (ranh giới hồng/xanh) chạy theo rope (-1..+1): phe nào mạnh hơn
 // thì đẩy vạch sang phía phe kia; chạm mép (±0,9) là thắng màn.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ThreeFighters from './ThreeFighters'
+import { fighterFractions } from '../game/stage3d.js'
 
 function Flame({ className, style }) {
   return (
@@ -61,6 +62,18 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
   // Nhân vật 3D đã load xong chưa — chưa xong / load lỗi thì hiện blocky 2D
   // dự phòng để màn không bao giờ trống nhân vật.
   const [threeOk, setThreeOk] = useState(false)
+  // Tỉ lệ màn (rộng/cao) để đặt nhãn GIRL/BOY đúng dưới nhân vật 3D:
+  // nhãn tính bằng cùng công thức vị trí với canvas (stage3d.js) nên vạch
+  // chạy tới mép nhãn vẫn nằm đúng dưới người, chỉ kẹp trong màn hình.
+  const [aspect, setAspect] = useState(() => (typeof window !== 'undefined' ? window.innerWidth / Math.max(window.innerHeight, 1) : 0.462))
+  useEffect(() => {
+    const onResize = () => setAspect(window.innerWidth / Math.max(window.innerHeight, 1))
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const fracs = fighterFractions(divider, aspect)
+  // Nhãn rộng 122px → tâm nhãn = vị trí nhân vật, kẹp 6px mỗi mép.
+  const plateStyle = (f) => ({ left: `clamp(6px, calc(${f * 100}% - 61px), calc(100% - 128px))` })
   // Nghiêng người (chỉ dùng cho nhân vật blocky dự phòng): thua thì ngả về
   // sau. Quà TO (jolt big) thì phe bị đẩy ngửa thêm 14° + rung màn hình
   // mạnh; quà nhỏ rung nhẹ; cmt/tim chỉ nhích vạch (không rung).
@@ -104,11 +117,11 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
            Nhãn kẹp trong màn hình (max/min) để vạch chạy tới mép thì tên
            không bị cắt nửa như trước. */}
       <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} onStatus={(s) => setThreeOk(s === 'ready')} />
-      <div className="nvb-char-wrap girl" style={{ left: `max(6px, calc(${divider}% - 138px))` }}>
+      <div className="nvb-char-wrap girl" style={plateStyle(fracs.girl)}>
         {!threeOk && <Blocky side="girl" lean={girlLean} />}
         <div className="nvb-nameplate">GIRL</div>
       </div>
-      <div className="nvb-char-wrap boy" style={{ left: `min(calc(${divider}% + 18px), calc(100% - 128px))` }}>
+      <div className="nvb-char-wrap boy" style={plateStyle(fracs.boy)}>
         {!threeOk && <Blocky side="boy" lean={boyLean} />}
         <div className="nvb-nameplate">BOY</div>
       </div>

@@ -42,15 +42,18 @@ export function teamOfMember(memberId) {
 export function otherTeam(teamId) { return teamId === 'A' ? 'B' : 'A' }
 
 // ─── Quà TikTok → lực kéo ──────────────────────────────────────────────────
-// Giá xu thật (bảng quà TikTok, chỉ quà dưới 100 xu). Quà là cú bùng sức
-// mạnh — 1 món quà to bằng cả đám đông: 99 xu = 100 lực = 100 người.
-// 1 xu = 1, 5 xu = 5, 10 xu = 10, 20 xu = 25, 99 xu = 100 lực kéo.
+// Giá xu thật (bảng quà TikTok trên điện thoại streamer, đối chiếu 2026-11-21).
+// Quà là cú bùng sức mạnh — 1 món quà to bằng cả đám đông: 99 xu = 100 lực
+// = 100 người. 1 xu = 1, 5 xu = 5, 10 xu = 10, 20–30 xu = 25, 99+ xu = 100 lực kéo.
 export const DEFAULT_GIFT_MAP = {
   // 1 xu → bùng nhẹ
   'hoa hồng': 1, rose: 1,
-  'kem ốc quế': 1, 'ice cream': 1,
+  'kem ốc quế': 1, 'ice cream': 1, 'ice cream cone': 1,
   'nhịp trống mirwas': 1, mirwas: 1,
   'nhạc tự do': 1, 'nhạc xưa': 1, 'thả tim cho tôi': 1, 'tiktok': 1, 'đỉnh': 1, 'gg': 1,
+  'yêu bạn': 1, 'love you': 1,
+  'bánh sinh nhật': 1, 'birthday cake': 1,
+  'live fest 26': 1,
   // 5 xu → bùng vừa
   'bing chilling': 5,
   'quả đào': 5, peach: 5,
@@ -58,11 +61,26 @@ export const DEFAULT_GIFT_MAP = {
   // 10 xu → bùng mạnh
   'rosa': 10,
   'cỏ bốn lá': 10, 'four-leaf clover': 10, clover: 10,
-  // 20 xu → bùng rất mạnh
+  'chú heo may mắn': 10, 'lucky pig': 10,
+  // 20–30 xu → bùng rất mạnh
   'nước hoa': 25, perfume: 25,
   'little kisses': 25,
-  // 99 xu → bùng cực mạnh = 100 người
+  'bánh vòng': 25, 'cheese donuts': 25,
+  // 99 xu trở lên → bùng cực mạnh = 100 người
   'hạc giấy': 100, 'paper crane': 100,
+  'bó hoa': 100, bouquet: 100,
+  'thả tim': 100, 'hand hearts': 100, 'hand heart': 100,
+  'tay cầm chơi game': 100, 'game controller': 100,
+  'hộp quà bóng bay': 100, 'balloon gift box': 100,
+  'gg siêu khủng': 100, 'epic gg': 100,
+  'mũ và ria mép': 100, 'hat and mustache': 100,
+  'tim': 100, hearts: 100,
+  'chó corgi': 100, corgi: 100,
+  'buổi sáng tốt lành': 100, 'good morning': 100,
+  'súng bắn tiền': 100, 'money gun': 100,
+  'cuối tuần vui vẻ': 100, 'happy weekend': 100,
+  'thiên hà': 100, galaxy: 100,
+  'ú òa': 100, 'peeka-bro': 100, 'peeka bro': 100,
 }
 
 // ─── Quà → phe (NAM vs NỮ, luật chốt 2026-11-21) ──────────────────────────
@@ -74,10 +92,10 @@ export const GIFT_TEAM = {
   'hoa hồng': 'A', rose: 'A',
   rosa: 'A',
   'cỏ bốn lá': 'A', 'four-leaf clover': 'A', clover: 'A',
-  'nước hoa': 'A', perfume: 'A',
   'little kisses': 'A',
   'quả đào': 'A', peach: 'A',
   'hạc giấy': 'A', 'paper crane': 'A',
+  'bánh vòng': 'A', 'cheese donuts': 'A',
   // Nam (BOY, phải, xanh)
   tiktok: 'B',
   gg: 'B',
@@ -91,6 +109,9 @@ export const GIFT_TEAM = {
   'trái bóng xoáy': 'B',
   'bắn tim': 'B', 'finger heart': 'B',
   ok: 'B',
+  // Nước hoa (20 xu) → NAM từ 2026-11-21 (trước đó để bên Nữ, sửa lại
+  // theo lệnh tấn: quà tầm 20–30 xu thì Nước hoa đẩy Nam, Bánh vòng đẩy Nữ).
+  'nước hoa': 'B', perfume: 'B',
 }
 export function giftTeamFor(giftName) {
   if (!giftName) return null
@@ -170,22 +191,47 @@ export function giftIcon(giftName) {
   return GIFT_ICONS[GiftEngine.normGiftName(giftName)] || '🎁'
 }
 
-// Giá xu thật của quà TikTok (theo bảng quà TikTok), chỉ quà dưới 100 xu.
+// Giá xu thật của quà TikTok (theo bảng quà trên điện thoại streamer, 2026-11-21).
 export const GIFT_PRICES = {
   'hoa hồng': 1, rose: 1,
-  'kem ốc quế': 1, 'ice cream': 1,
+  'kem ốc quế': 1, 'ice cream': 1, 'ice cream cone': 1,
   'nhịp trống mirwas': 1, mirwas: 1,
   'nhạc tự do': 1, 'nhạc xưa': 1, 'thả tim cho tôi': 1, 'gg': 1, 'tiktok': 1, 'đỉnh': 1,
+  'yêu bạn': 1, 'love you': 1,
+  'bánh sinh nhật': 1, 'birthday cake': 1,
+  'live fest 26': 1,
   'bing chilling': 5, 'quả đào': 5, peach: 5, 'ok': 5,
   'phản ứng quá lố': 5, 'trái bóng xoáy': 5, 'bắn tim': 5, 'finger heart': 5,
   'rosa': 10, 'cỏ bốn lá': 10, 'four-leaf clover': 10, clover: 10,
+  'chú heo may mắn': 10, 'lucky pig': 10,
   'nước hoa': 20, perfume: 20, 'little kisses': 20,
+  'bánh vòng': 30, 'cheese donuts': 30,
   'hạc giấy': 99, 'paper crane': 99,
+  'mũ và ria mép': 99, 'hat and mustache': 99,
+  'bó hoa': 100, bouquet: 100,
+  'thả tim': 100, 'hand hearts': 100, 'hand heart': 100,
+  'tay cầm chơi game': 100, 'game controller': 100,
+  'hộp quà bóng bay': 100, 'balloon gift box': 100,
+  'gg siêu khủng': 100, 'epic gg': 100,
+  'tim': 199, hearts: 199,
+  'ú òa': 199, 'peeka-bro': 199, 'peeka bro': 199,
+  'chó corgi': 299, corgi: 299,
+  'buổi sáng tốt lành': 399, 'good morning': 399,
+  'súng bắn tiền': 500, 'money gun': 500,
+  'cuối tuần vui vẻ': 599, 'happy weekend': 599,
+  'thiên hà': 1000, galaxy: 1000,
 }
 export function giftPrice(giftName) {
   if (!giftName) return null
   const p = GIFT_PRICES[GiftEngine.normGiftName(giftName)]
   return p == null ? null : p
+}
+// Quà 100 xu trở lên → hiệu ứng lớn giữa màn (tên + avatar người tặng,
+// vòng trái tim, 4,5 giây). Tính theo GIÁ XU của 1 món, không tính số
+// lượng tặng (hoa hồng ×100 vẫn là quà 1 xu, không hiện spotlight).
+export function isSpotlightGift(giftName) {
+  const price = giftPrice(giftName)
+  return price != null && price >= 100
 }
 // Xu càng cao kéo càng mạnh (theo giá quà TikTok).
 export function giftTier(coins) {
@@ -615,13 +661,16 @@ export function applyPull(state, teamId, power, sender = {}, giftName = '', opts
   state.effects.push({ id: nextId('fx'), kind: 'pull', team: teamId, t: 0, dur: 0.6 })
   if (flip) state.effects.push({ id: nextId('fx'), kind: 'flip', team: teamId, sender: senderName, t: 0, dur: 2.5 })
   // Hiệu ứng tặng quà (đỉnh của chóp): quà nhỏ = hộp quà mở ra + hiện tên;
-  // quà to (≥25 lực) = nổ pháo hoa + tên người tặng hiện nổi bật.
+  // quà to (≥25 lực) = nổ pháo hoa + tên người tặng hiện nổi bật; quà
+  // 100 xu trở lên = spotlight giữa màn (tên + avatar + vòng tim, 4,5 giây).
   // opts.gift === false thì không hiện (lượt kéo thử / demo, không phải quà).
   if (opts.gift !== false) {
+    const spotlight = isSpotlightGift(giftName)
     state.effects.push({
       id: nextId('fx'), kind: 'gift', team: teamId,
-      sender: senderName, gift: giftName || '', icon: giftIcon(giftName),
-      power: effect, big, t: 0, dur: big ? 3.5 : 2,
+      sender: senderName, avatar: sender.avatar || '', gift: giftName || '', icon: giftIcon(giftName),
+      power: effect, big, coins: giftPrice(giftName) ?? 0, spotlight,
+      t: 0, dur: spotlight ? 4.5 : (big ? 3.5 : 2),
       province: pv || null, provinceBonus,
     })
   }

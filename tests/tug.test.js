@@ -6,13 +6,15 @@
 // cmt boy/nam +1 Nam, girl/nữ +1 Nữ (đẩy ngay, không vào đội, không +1 theo người).
 import assert from 'node:assert'
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS } from '../src/game/poses.js'
+import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
+import { GUIDE_ROWS } from '../src/game/guide.js'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
 import { TikTokWS, WS_STATUS } from '../src/game/wsClient.js'
 import { detectProvince, provinceInfo, provinceRank } from '../src/game/provinces.js'
 import {
   DEFAULT_SETTINGS, GiftEngine, MEMBER_TYPES, TEAMS, advance, applyCheer, applyFollow, applyLikes,
   applyPull, clearBxh, createMatch, endRound, findMember, giftBoost, giftPrice, giftTeamFor, giftTier,
-  giftTeam, joinProvince, joinTeam, migrateGiftMap, parseTeamJoin, pushToast, recordGift, resetMatchWins, startMatch, startRound,
+  giftTeam, isSpotlightGift, joinProvince, joinTeam, migrateGiftMap, parseTeamJoin, pushToast, recordGift, resetMatchWins, startMatch, startRound,
   syncProvinceTeams, teamLabel, provinceLeader, teamStrength, tick, topGifters, topLikers, topProvinces, topProvincesByComments, visibleMembers,
 } from '../src/game/engine.js'
 
@@ -401,7 +403,8 @@ test('chính món quà quyết định phe (bảng GIFT_TEAM), quà lạ về ph
   const s = freshMatch()
   assert.equal(giftTeam(s, 'lan', '', 'hoa hồng'), 'A', 'hoa hồng → Nữ dù người tặng là ai')
   assert.equal(giftTeam(s, 'lan', '', 'tiktok'), 'B', 'quà TikTok → Nam dù người tặng là ai')
-  assert.equal(giftTeam(s, 'lan', '', 'nước hoa'), 'A', 'nước hoa → Nữ')
+  assert.equal(giftTeam(s, 'lan', '', 'nước hoa'), 'B', 'nước hoa → Nam (chuyển phe 17:51)')
+  assert.equal(giftTeam(s, 'lan', '', 'bánh vòng'), 'A', 'bánh vòng → Nữ')
   assert.equal(giftTeam(s, 'lan', '', 'kem ốc quế'), 'B', 'kem ốc quế → Nam')
   s.rope = 0.3 // Nữ đang dẫn, Nam thua
   assert.equal(giftTeam(s, 'nguoi-la', '', 'quà lạ'), 'B', 'quà lạ → phe đang thua (Nam)')
@@ -1117,6 +1120,126 @@ test('DÁNG 3D: URL GLB thử local trước rồi CDN KayKit đã ghim commit',
   assert.ok(b[1].endsWith('/Knight.glb') && b[2].endsWith('/Knight.glb'))
   assert.deepEqual(KEEP_ACCESSORIES.A, ['Knife'], 'Nữ chỉ giữ dao găm')
   assert.deepEqual(KEEP_ACCESSORIES.B, ['1H_Sword', 'Round_Shield'], 'Nam chỉ giữ kiếm + khiên tròn')
+})
+test('VỊ TRÍ 3D: vạch tới mép thì trượt CẢ CẶP, khoảng cách 2 người giữ nguyên', () => {
+  const mid = fighterFractions(50, 0.462)
+  const edge = fighterFractions(90.5, 0.462)
+  assert.ok(edge.girl >= 0.05 && edge.boy <= 0.95, 'tới mép vẫn nằm trong màn')
+  assert.ok(approx(edge.boy - edge.girl, mid.boy - mid.girl, 0.02), 'khoảng cách không đổi khi trượt')
+  const left = fighterFractions(9.5, 0.462)
+  assert.ok(approx(left.girl, 1 - edge.boy, 0.01) && approx(left.boy, 1 - edge.girl, 0.01), '2 mép đối xứng nhau')
+})
+test('VỊ TRÍ 3D: mỗi người cách vạch giữa đúng CHAR_OFFSET, không chạm mặt', () => {
+  const halfW = VISIBLE_HALF_H * 0.462
+  const { girlX, boyX } = fighterWorldPositions(50, halfW)
+  assert.ok(approx(girlX, -CHAR_OFFSET) && approx(boyX, CHAR_OFFSET))
+  assert.ok(boyX - girlX >= 1.5, 'tâm 2 người cách nhau ≥ 1,5m — mặt không chạm nhau')
+  assert.deepEqual(fighterWorldPositions(NaN, halfW), fighterWorldPositions(50, halfW), 'divider rác thì coi như giữa')
+})
+test('BẢNG HƯỚNG DẪN: 7 dòng — 4 quà (ảnh TikTok thật) + tim/follow/cmt, đúng luật 17:51', () => {
+  assert.equal(GUIDE_ROWS.length, 7, '4 dòng quà + 3 dòng tương tác')
+  assert.deepEqual(GUIDE_ROWS.map((r) => r.side), ['A', 'B', 'B', 'A', 'A', 'B', null])
+  const text = GUIDE_ROWS.map((r) => `${r.left} → ${r.right}`).join(' | ')
+  assert.ok(text.includes('Hoa hồng → Nữ'), 'hoa hồng → Nữ')
+  assert.ok(text.includes('Quà TikTok → Nam'), 'quà TikTok → Nam')
+  assert.ok(text.includes('Nước hoa → Nam'), 'nước hoa → Nam (chuyển phe 17:51)')
+  assert.ok(text.includes('Bánh vòng → Nữ'), 'bánh vòng → Nữ (mới 17:51)')
+  assert.ok(text.includes('100 tim → Nữ +10'), '100 tim → Nữ +10')
+  assert.ok(text.includes('1 follow → Nam +10'), '1 follow → Nam +10')
+  assert.ok(text.includes('Cmt boy/nam · girl/nữ → +1'), 'cmt boy/nam · girl/nữ → +1')
+  for (const r of GUIDE_ROWS.slice(0, 4)) {
+    assert.ok(r.img && r.img.startsWith('/gifts/') && r.img.endsWith('.webp'), 'dòng quà dùng ảnh TikTok thật')
+  }
+  for (const r of GUIDE_ROWS) {
+    assert.ok(!('icon' in r), 'không còn icon emoji chung chung')
+    assert.ok(r.left && r.right, 'mỗi dòng có chữ')
+  }
+  for (const r of GUIDE_ROWS.slice(4)) assert.ok(r.lucide, 'dòng tương tác dùng icon UI của game')
+})
+
+test('BẢNG PHE QUÀ (17:51): nước hoa → Nam, bánh vòng → Nữ; hoa hồng → Nữ, TikTok → Nam', () => {
+  assert.equal(giftTeamFor('nước hoa'), 'B', 'nước hoa chuyển từ Nữ sang Nam')
+  assert.equal(giftTeamFor('perfume'), 'B')
+  assert.equal(giftTeamFor('bánh vòng'), 'A', 'bánh vòng mới → Nữ')
+  assert.equal(giftTeamFor('cheese donuts'), 'A')
+  assert.equal(giftTeamFor('hoa hồng'), 'A')
+  assert.equal(giftTeamFor('tiktok'), 'B')
+  assert.equal(giftTeamFor('little kisses'), 'A', 'quà khác giữ nguyên phe cũ')
+  assert.equal(giftTeamFor('kem ốc quế'), 'B')
+})
+
+test('GIÁ XU THẬT (ảnh tấn gửi 17:48): bánh vòng 30, bó hoa/thả tim/tay cầm/hộp quà 100, thiên hà 1000', () => {
+  assert.equal(giftPrice('bánh vòng'), 30)
+  assert.equal(giftPrice('nước hoa'), 20)
+  assert.equal(giftPrice('bó hoa'), 100)
+  assert.equal(giftPrice('thả tim'), 100)
+  assert.equal(giftPrice('tay cầm chơi game'), 100)
+  assert.equal(giftPrice('hộp quà bóng bay'), 100)
+  assert.equal(giftPrice('gg siêu khủng'), 100)
+  assert.equal(giftPrice('thiên hà'), 1000)
+  assert.equal(giftPrice('súng bắn tiền'), 500)
+  assert.equal(giftPrice('chó corgi'), 299)
+  assert.equal(giftPrice('tim'), 199)
+  assert.equal(giftPrice('mũ và ria mép'), 99)
+  assert.equal(giftPrice('hạc giấy'), 99)
+  assert.equal(giftPrice('hoa hồng'), 1)
+})
+
+test('QUÀ 100 XU → spotlight: giá ≥100 hiện giữa màn, 99 xu trở xuống không', () => {
+  assert.equal(isSpotlightGift('bó hoa'), true, 'bó hoa 100 xu')
+  assert.equal(isSpotlightGift('thả tim'), true, 'thả tim 100 xu')
+  assert.equal(isSpotlightGift('thiên hà'), true, 'thiên hà 1000 xu cũng spotlight')
+  assert.equal(isSpotlightGift('hạc giấy'), false, 'hạc giấy 99 xu không spotlight')
+  assert.equal(isSpotlightGift('mũ và ria mép'), false, '99 xu không spotlight')
+  assert.equal(isSpotlightGift('hoa hồng'), false, 'quà 1 xu không spotlight')
+  assert.equal(isSpotlightGift('quà lạ'), false, 'quà không rõ giá không spotlight')
+  assert.equal(isSpotlightGift(''), false)
+  assert.equal(isSpotlightGift(null), false)
+})
+
+test('QUÀ NƯỚC HOA → điểm Nam tăng; BÁNH VÒNG → điểm Nữ tăng (qua GiftEngine)', () => {
+  const s = freshMatch()
+  const eng = new GiftEngine(s)
+  const beforeB = s.roundScore.B || 0
+  eng.receive({ id: 'g-nh', giftName: 'nước hoa', nickname: 'Hoa', userId: 'hoa' })
+  const res = eng.process(s.now + 1)
+  assert.ok(res.ok, 'quà nước hoa phải được xử lý')
+  assert.ok((s.roundScore.B || 0) > beforeB, 'nước hoa phải cộng điểm Nam')
+  const beforeA = s.roundScore.A || 0
+  eng.receive({ id: 'g-bv', giftName: 'bánh vòng', nickname: 'Banh', userId: 'banh' })
+  eng.process(s.now + 2)
+  assert.ok((s.roundScore.A || 0) > beforeA, 'bánh vòng phải cộng điểm Nữ')
+})
+
+test('SPOTLIGHT Ở LẠI ĐỦ 4,5 GIÂY: quà nhỏ tới sau không xóa hiệu ứng spotlight', () => {
+  const s = freshMatch()
+  applyPull(s, 'A', 100, { nickname: 'Hoa', userId: 'hoa' }, 'bó hoa')
+  applyPull(s, 'B', 5, { nickname: 'Nam', userId: 'nam' }, 'quả đào')
+  const spots = s.effects.filter((e) => e.kind === 'gift' && e.spotlight)
+  assert.equal(spots.length, 1, 'spotlight bó hoa vẫn còn trong effects dù quà nhỏ tới sau')
+  assert.equal(spots[0].dur, 4.5)
+  assert.equal(spots[0].sender, 'Hoa')
+  step(s, 2)
+  assert.equal(s.effects.filter((e) => e.kind === 'gift' && e.spotlight).length, 1, 'sau 2s (quà nhỏ đã hết) spotlight vẫn hiện')
+  step(s, 3)
+  assert.equal(s.effects.filter((e) => e.kind === 'gift' && e.spotlight).length, 0, 'sau 4,5s spotlight tự mất')
+})
+
+test('HIỆU ỨNG QUÀ 100 XU: spotlight mang avatar + giá xu, hiện 4,5 giây; hạc giấy 99 xu thì không', () => {
+  const s = freshMatch()
+  applyPull(s, 'A', 100, { nickname: 'Hoa', userId: 'hoa', avatar: 'https://x/avatar.jpg' }, 'bó hoa')
+  const fx = s.effects.filter((e) => e.kind === 'gift').pop()
+  assert.ok(fx, 'phải có hiệu ứng gift')
+  assert.equal(fx.spotlight, true, 'bó hoa 100 xu phải là spotlight')
+  assert.equal(fx.avatar, 'https://x/avatar.jpg', 'hiệu ứng mang avatar người tặng')
+  assert.equal(fx.coins, 100, 'hiệu ứng mang giá xu')
+  assert.equal(fx.dur, 4.5, 'spotlight hiện 4,5 giây')
+  assert.equal(fx.big, true, 'quà 100 xu vẫn là quà to')
+  applyPull(s, 'B', 100, { nickname: 'Minh', userId: 'minh' }, 'hạc giấy')
+  const fx2 = s.effects.filter((e) => e.kind === 'gift').pop()
+  assert.equal(fx2.big, true, 'hạc giấy vẫn là quà to (pháo hoa)')
+  assert.equal(fx2.spotlight, false, 'hạc giấy 99 xu không phải spotlight')
+  assert.equal(fx2.dur, 3.5, 'quà to thường hiện 3,5 giây')
 })
 
 

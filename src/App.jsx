@@ -4,12 +4,13 @@
 import { useEffect, useState } from 'react'
 import {
   BookOpen, Gift, Heart, MessageCircle, Pause, Sparkles, Star, Trophy,
-  Users, Volume2, VolumeX, X, Zap,
+  UserPlus, Users, Volume2, VolumeX, X, Zap,
 } from 'lucide-react'
 import BattleScene from './components/BattleScene'
 import GiftIcon from './components/GiftIcon'
 import AdminPage from './AdminPage'
 import { useTugOfWar } from './game/useTugOfWar'
+import { GUIDE_ROWS } from './game/guide.js'
 import { WS_STATUS } from './game/wsClient'
 import { TEAMS } from './game/engine'
 
@@ -23,6 +24,27 @@ function Stars({ n, total = 2 }) {
       ))}
     </span>
   )
+}
+
+// Icon 1 dòng trong bảng hướng dẫn: dòng quà = ảnh thật TikTok (guide.js
+// cho img), dòng tương tác = icon UI của game (Lucide, cùng bộ nút nhạc).
+function GuideIcon({ row }) {
+  if (row.img) return <img src={row.img} alt={row.alt || ''} />
+  if (row.lucide === 'Heart') return <Heart size={15} fill="currentColor" />
+  if (row.lucide === 'UserPlus') return <UserPlus size={15} />
+  return <MessageCircle size={15} />
+}
+
+// Avatar người tặng trong spotlight quà 100 xu: có ảnh thật thì hiện ảnh,
+// không có (demo) hoặc ảnh lỗi thì hiện vòng tròn chữ cái như chỗ khác
+// trong game (màu theo phe được tặng).
+function SpotAvatar({ avatar, name, team }) {
+  const [broken, setBroken] = useState(false)
+  const letter = String(name || 'K').trim().charAt(0).toUpperCase() || 'K'
+  if (avatar && !broken) {
+    return <img className="nvb-spot-av" src={avatar} alt={name || 'người tặng'} onError={() => setBroken(true)} />
+  }
+  return <div className={`nvb-spot-letter ${team === 'B' ? 'blue' : 'pink'}`}>{letter}</div>
 }
 
 export default function App() {
@@ -60,6 +82,10 @@ function DisplayGame() {
   const scoreB = Math.round(s?.roundScore?.B || 0)
   const toastFx = (s?.effects || []).filter((e) => e.kind === 'toast').pop()
   const giftFx = (s?.effects || []).filter((e) => e.kind === 'gift').pop()
+  // Spotlight quà 100 xu: lấy từ hiệu ứng spotlight MỚI NHẤT còn hiện,
+  // không lấy theo giftFx (quà nhỏ tới sau sẽ thay giftFx nhưng spotlight
+  // phải ở lại đủ 4,5 giây — xem ghi chú ở khối spotlight bên dưới).
+  const spotFx = (s?.effects || []).filter((e) => e.kind === 'gift' && e.spotlight).pop()
   // Hiệu ứng đẩy theo tỉ lệ (luật chốt 14:58): quà to → rung mạnh + nhân
   // vật bị đẩy ngửa thêm; quà nhỏ → rung nhẹ; tim/follow → chỉ nhích vạch.
   const likeFx = (s?.effects || []).filter((e) => e.kind === 'like' || e.kind === 'follow').pop()
@@ -92,6 +118,21 @@ function DisplayGame() {
           {!present && <button className="pml-helpbtn" onClick={() => setGuideOpen(!guideOpen)}><BookOpen size={14} /> Cách chơi</button>}
         </div>
 
+        {/* Bảng hướng dẫn gọn — nằm ở dải trống giữa hàng nút (~140px) và
+             đầu nhân vật (~335px): không che pill điểm, WIN, LIVE, nhân
+             vật, BXH hay thanh dưới. Luôn hiện (trừ lúc đếm ngược 3s và lúc
+             banner thắng chiếm giữa màn), bấm "Cách chơi" để xem bản đầy đủ. */}
+        {phase !== 'roundEnd' && phase !== 'matchEnd' && phase !== 'countdown' && (
+          <div className="nvb-guide" aria-label="Cách chơi">
+            {GUIDE_ROWS.map((r, i) => (
+              <span key={i} className={`nvb-guide-cell ${r.side === 'A' ? 'pink' : r.side === 'B' ? 'blue' : 'both'}`}>
+                <span className="nvb-guide-ic" aria-hidden="true"><GuideIcon row={r} /></span>
+                <span>{r.left} <b>→ {r.right}</b></span>
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Đếm ngược */}
         {phase === 'countdown' && (
           <div className="pml-countdown">{countdown > 0 ? countdown : 'ĐẨY!'}</div>
@@ -112,18 +153,39 @@ function DisplayGame() {
           <div className="pml-toast" key={toastFx.id}>{toastFx.text}</div>
         )}
 
-        {/* Hiệu ứng tặng quà: nhỏ 2s, to (≥25) tên vàng + pháo hoa 3,5s */}
-        {giftFx && !giftFx.big && (
+        {/* Hiệu ứng tặng quà: nhỏ 2s, to (≥25) tên vàng + pháo hoa 3,5s,
+             100 xu trở lên = spotlight giữa màn 4,5s (tên + avatar + vòng
+             tim hồng, không che pill điểm/WIN/LIVE, tự mất sau 4,5 giây).
+             Spotlight lấy từ spotFx (hiệu ứng spotlight mới nhất) để quà
+             nhỏ tới sau không cắt ngang 4,5 giây của nó — 2 hiệu ứng hiện
+             cùng lúc ở 2 vị trí khác nhau (spotlight giữa màn, quà nhỏ ở
+             trên), không chồng nhau. */}
+        {spotFx && (
+          <div className="nvb-spot" key={spotFx.id}>
+            <div className="nvb-spot-ring">
+              <SpotAvatar avatar={spotFx.avatar} name={spotFx.sender} team={spotFx.team} />
+              <span className="nvb-spot-heart h1"><Heart size={16} fill="currentColor" /></span>
+              <span className="nvb-spot-heart h2"><Heart size={14} fill="currentColor" /></span>
+              <span className="nvb-spot-heart h3"><Heart size={14} fill="currentColor" /></span>
+              <span className="nvb-spot-heart h4"><Heart size={16} fill="currentColor" /></span>
+              <span className="nvb-spot-heart h5"><Heart size={14} fill="currentColor" /></span>
+              <span className="nvb-spot-heart h6"><Heart size={14} fill="currentColor" /></span>
+            </div>
+            <div className="nvb-spot-name">{spotFx.sender}</div>
+            <div className="nvb-spot-sub">tặng {spotFx.gift || 'quà 100 xu'} · <Zap size={13} /> {Math.round(spotFx.power)} điểm</div>
+          </div>
+        )}
+        {giftFx && !giftFx.spotlight && !giftFx.big && (
           <div className="pml-gift" key={giftFx.id}>
             <div className="pml-gift-box">
-              <span className="pml-gift-sticker"><GiftIcon gift={giftFx.gift} size={64} /></span>
+              <span className="pml-gift-sticker"><GiftIcon gift={giftFx.gift} size={40} /></span>
               <span className="pml-gift-spark"><Sparkles size={22} /></span>
             </div>
             <div className="pml-gift-name">{giftFx.sender}</div>
             <div className="pml-gift-sub">tặng {giftFx.gift || 'quà'} · <Zap size={13} /> {Math.round(giftFx.power)} điểm</div>
           </div>
         )}
-        {giftFx && giftFx.big && (
+        {giftFx && !giftFx.spotlight && giftFx.big && (
           <div className="pml-fireworks" key={giftFx.id}>
             <span className="fw-burst fw-1" />
             <span className="fw-burst fw-2" />
@@ -195,8 +257,6 @@ function DisplayGame() {
           <>
             <div className="pml-wait-tap" onClick={game.start} />
             <div className="pml-wait-card" onClick={game.start}>
-              <div className="pml-wait-line"><Gift size={14} /> Hoa hồng → đẩy <b>Nữ</b> · Quà TikTok → đẩy <b>Nam</b> · <Heart size={14} fill="currentColor" /> 100 tim = +10 cho <b>Nữ</b> · <Users size={14} /> 1 follow = +10 cho <b>Nam</b></div>
-              <div className="pml-wait-line">Phe nào tặng quà nhiều hơn sẽ đẩy phe kia — chạm mép bên kia là thắng 1 màn, thắng 2 màn là vô địch! Cmt <b>boy/nam +1 cho Nam</b> · <b>girl/nữ +1 cho Nữ</b>.</div>
               <div className="pml-wait-go">{autoPlay ? 'Đang tự động bắt đầu…' : 'Chạm màn hình để bắt đầu!'}</div>
               {s?.pendingJoins > 0 && <div className="pml-wait-sub">{s.pendingJoins} bạn đang chờ vào phe</div>}
             </div>

@@ -218,8 +218,8 @@ input, select { font-family: inherit; }
 .pml-wait-sub { margin-top: 7px; font-size: 12px; font-weight: 600; opacity: .85; }
 
 .pml-countdown {
-  position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); z-index: 8;
-  font-size: 100px; font-weight: 900;
+  position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); z-index: 8;
+  font-size: 84px; font-weight: 900;
   background: linear-gradient(180deg, #ffffff, #ffd60a 70%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: #fff;
   filter: drop-shadow(0 4px 0 #166534) drop-shadow(0 8px 24px rgba(0,0,0,.6));
@@ -248,7 +248,7 @@ input, select { font-family: inherit; }
 
 /* ── Toast: ai vào xem / theo dõi / chia sẻ — hiện 2 giây rồi mất ── */
 .pml-toast {
-  position: absolute; top: calc(212px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 8;
+  position: absolute; top: calc(268px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 8;
   background: rgba(8, 38, 26, .8); color: #fff; border: 1px solid rgba(255,255,255,.25);
   border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 700;
   box-shadow: 0 4px 14px rgba(0,0,0,.35); backdrop-filter: blur(6px);
@@ -523,13 +523,15 @@ input, select { font-family: inherit; }
 .nvb-flame.dark { opacity: .85; }
 @keyframes nvb-flick { from { transform: scaleY(1); } to { transform: scaleY(1.08) skewX(-1.5deg); } }
 .nvb-teamtag {
-  position: absolute; top: 37%; z-index: 5; font-size: 10px; font-weight: 900; letter-spacing: .4px;
+  position: absolute; top: 33%; z-index: 5; font-size: 10px; font-weight: 900; letter-spacing: .4px;
   background: rgba(0,0,0,.4); color: #fff; border-radius: 999px; padding: 4px 8px;
 }
 .nvb-teamtag.left { left: 6px; }
 .nvb-teamtag.right { right: 6px; }
-/* Nhân vật blocky 2D */
-.nvb-char-wrap { position: absolute; bottom: 22%; width: 122px; z-index: 4; transition: left .3s linear; text-align: center; }
+/* Nhân vật blocky 2D — z 7 để nhãn GIRL/BOY (trong cùng wrap) luôn nằm TRÊN
+   hộp BXH: BXH mọc cao dần khi có nhiều người tặng, trước đây nó che mất
+   nhãn GIRL bên trái. Nhãn vẫn nằm đúng dưới nhân vật (stage3d.js). */
+.nvb-char-wrap { position: absolute; bottom: 22%; width: 122px; z-index: 7; transition: left .3s linear; text-align: center; }
 .nvb-char { position: relative; width: 112px; margin: 0 auto; animation: nvb-bounce .7s ease-in-out infinite alternate; }
 @keyframes nvb-bounce { from { transform: translateY(0); } to { transform: translateY(-5px); } }
 .nvb-char-wrap.girl .nvb-char { animation-delay: 0s; }
@@ -580,7 +582,8 @@ input, select { font-family: inherit; }
 .nvb-shoe.right { right: 6px; }
 .nvb-nameplate {
   display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 900;
-  background: rgba(0,0,0,.55); color: #fff; border-radius: 999px; padding: 3px 9px;
+  background: rgba(0,0,0,.75); color: #fff; border: 1px solid rgba(255,255,255,.35);
+  border-radius: 999px; padding: 3px 9px;
   white-space: nowrap;
 }
 /* Pill điểm trên cùng — giống ảnh mẫu */
@@ -652,9 +655,58 @@ input, select { font-family: inherit; }
   .nvb-winlabel { font-size: 16px; padding: 3px 10px; }
   .nvb-char-wrap { bottom: 24%; }
 }
-/* Hiệu ứng quà trên màn battle: dời xuống để khỏi đè banner LẬT KÈO. */
-.pml-stage.nvb .pml-gift { top: 48%; }
-.pml-stage.nvb .pml-fireworks-name { top: 48%; }
+/* Hiệu ứng quà trên màn battle: dời lên dải trống phía trên đầu nhân vật
+   (trước đây ở giữa màn, tên người tặng đè lên mặt nhân vật) + thu nhỏ. */
+.pml-stage.nvb .pml-gift { top: 21%; }
+.pml-stage.nvb .pml-gift-sticker { width: 64px; height: 64px; }
+.pml-stage.nvb .pml-gift-name { font-size: 17px; }
+.pml-stage.nvb .pml-gift-sub { font-size: 12px; }
+.pml-stage.nvb .pml-fireworks-name { top: 21%; }
+.pml-stage.nvb .pml-fireworks-name .fw-name { font-size: 24px; }
+
+/* ── Bảng hướng dẫn gọn (luôn hiện, trừ lúc banner thắng) ───────────────
+   Đặt ở dải trống giữa hàng nút (kết thúc ~140px) và đầu nhân vật (~335px):
+   trên là pill điểm / WIN / LIVE, dưới là nhân vật — không che gì. 5 dòng
+   luật v2, mỗi dòng 1 icon + vài chữ, nhìn là hiểu. Nút "Cách chơi" ở góc
+   trên mở bản hướng dẫn đầy đủ. */
+.nvb-guide {
+  position: absolute; top: calc(148px + env(safe-area-inset-top)); left: 10px; right: 10px; z-index: 6;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px;
+  background: rgba(8, 38, 26, .72); border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px; padding: 9px 11px; backdrop-filter: blur(6px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.3); pointer-events: none;
+  font-size: 13.5px; font-weight: 600; line-height: 1.4; color: #fff;
+}
+.nvb-guide-cell { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nvb-guide-cell:last-child { grid-column: 1 / -1; justify-content: center; }
+.nvb-guide-ic { font-size: 15px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; }
+.nvb-guide-ic img { width: 20px; height: 20px; object-fit: contain; display: block; }
+.nvb-guide-ic svg { flex: none; display: block; }
+.nvb-guide-cell b { font-weight: 900; }
+.nvb-guide-cell.pink b { color: #ffc7e0; }
+.nvb-guide-cell.blue b { color: #bfe9ff; }
+
+/* ── NAM vs NỮ: spotlight quà 100 xu trở lên ─────────────────────────────
+   Tên + avatar người tặng Ở GIỮA MÀN (top 44%), vòng trái tim hồng bao
+   quanh avatar, hiện 4,5 giây rồi tự mất. Nằm giữa 2 nhân vật (khe lửa),
+   không che pill điểm / WIN / LIVE (trên cùng) hay mặt nhân vật (2 bên). */
+.nvb-spot { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 200px; z-index: 8; text-align: center; pointer-events: none; animation: nvb-spot-in .45s cubic-bezier(.34, 1.56, .64, 1); }
+.nvb-spot-ring { position: relative; width: 108px; height: 108px; margin: 0 auto; border-radius: 50%; border: 3px solid #ff4d8d; background: rgba(0, 0, 0, .35); box-shadow: 0 0 0 4px rgba(255, 77, 141, .35), 0 0 26px rgba(255, 77, 141, .85); display: flex; align-items: center; justify-content: center; animation: nvb-spot-pulse 1s ease-in-out infinite; }
+.nvb-spot-av { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; display: block; }
+.nvb-spot-letter { width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 900; color: #fff; }
+.nvb-spot-letter.pink { background: #ff4d8d; }
+.nvb-spot-letter.blue { background: #22b8e6; }
+.nvb-spot-heart { position: absolute; color: #ff5c9d; line-height: 1; filter: drop-shadow(0 0 4px rgba(255, 92, 157, .9)); }
+.nvb-spot-heart.h1 { top: -9px; left: 50%; transform: translateX(-50%); }
+.nvb-spot-heart.h2 { top: 12%; right: -7px; }
+.nvb-spot-heart.h3 { bottom: 12%; right: -7px; }
+.nvb-spot-heart.h4 { bottom: -9px; left: 50%; transform: translateX(-50%); }
+.nvb-spot-heart.h5 { bottom: 12%; left: -7px; }
+.nvb-spot-heart.h6 { top: 12%; left: -7px; }
+.nvb-spot-name { margin-top: 10px; font-size: 20px; font-weight: 900; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, .8), 0 0 18px rgba(255, 77, 141, .7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nvb-spot-sub { margin-top: 2px; font-size: 13px; font-weight: 700; color: #ffe9f3; text-shadow: 0 1px 6px rgba(0, 0, 0, .8); }
+@keyframes nvb-spot-in { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes nvb-spot-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(255, 77, 141, .35), 0 0 22px rgba(255, 77, 141, .7); } 50% { box-shadow: 0 0 0 7px rgba(255, 77, 141, .45), 0 0 34px rgba(255, 77, 141, 1); } }
 
 /* ── NAM vs NỮ: nhân vật 3D KayKit (canvas trong suốt phủ lên màn battle) ──
    Canvas nằm dưới pill điểm / WIN (z 6) và trên lửa (z 1); tên GIRL/BOY
