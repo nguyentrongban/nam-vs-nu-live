@@ -1,7 +1,7 @@
 // ─── NAM vs NỮ LIVE · App.jsx ──────────────────────────────────────────────
 // Màn LIVE (/) — 2D THUẦN, giống ảnh mẫu TikTok GIRL vs BOY. CHỈ hiển thị.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   BookOpen, Gift, Heart, MessageCircle, Pause, Sparkles, Star, Trophy,
   UserPlus, Users, Volume2, VolumeX, X, Zap,
@@ -62,6 +62,12 @@ function DisplayGame() {
 
   useEffect(() => { document.title = 'NAM vs NỮ LIVE — Đại chiến TikTok!' }, [])
 
+  // Neo pill TEAM G/B ngay dưới đáy bảng hướng dẫn (2026-11-21 19:25):
+  // đo đáy bảng thật bằng ResizeObserver rồi ghi vào biến CSS
+  // --nvb-guide-bottom trên khung stage; pill TEAM dùng biến đó nên
+  // không bao giờ bị bảng đè, dù bảng cao thêm hay màn ngắn lại. Khi
+  // bảng ẩn (đếm ngược/kết thúc màn) thì giữ giá trị đo lần cuối.
+
   const s = snap
   const connected = wsStatus === WS_STATUS.OPEN
   const phase = s?.phase || 'waiting'
@@ -105,9 +111,28 @@ function DisplayGame() {
   const hasBxh = (bxh.gifters?.length || 0) > 0 || (bxh.likers?.length || 0) > 0
   const winnerName = (teamId) => (teamId === 'A' ? 'GIRL' : 'BOY')
 
+  // Đo đáy bảng hướng dẫn → --nvb-guide-bottom (xem ghi chú ở trên).
+  const stageRef = useRef(null)
+  const guideRef = useRef(null)
+  useEffect(() => {
+    const stage = stageRef.current
+    const guide = guideRef.current
+    if (!stage || !guide) return undefined
+    const update = () => {
+      const sr = stage.getBoundingClientRect()
+      const gr = guide.getBoundingClientRect()
+      stage.style.setProperty('--nvb-guide-bottom', `${Math.round(gr.bottom - sr.top)}px`)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(guide)
+    window.addEventListener('resize', update)
+    return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+  }, [phase])
+
   return (
     <div className="pml-app" data-version={APP_VERSION}>
-      <div className="pml-stage nvb">
+      <div className="pml-stage nvb" ref={stageRef}>
         <BattleScene
           rope={previewRope ?? rope}
           scoreA={scoreA} scoreB={scoreB}
@@ -119,22 +144,26 @@ function DisplayGame() {
           celebrateTeam={celebrateTeam} celebrateId={celebrateId}
         />
 
-        {/* Nút tiếng + hướng dẫn (góc trên, không che pill điểm) */}
-        <div className="nvb-controls">
-          <span className={`pml-dot ${connected ? 'on' : ''}`} title={connected ? 'Đã nối TikTok LIVE' : 'Chưa nối TikTok'} />
-          <button className="pml-iconbtn" onClick={game.toggleMute} aria-label="Bật/tắt tiếng">
-            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-          {!present && <button className="pml-helpbtn" onClick={() => setGuideOpen(!guideOpen)}><BookOpen size={14} /> Cách chơi</button>}
-        </div>
+        {/* Góc trên phải để trống cho gọn (2026-11-21 19:25): nút loa +
+             nút Cách chơi đã thu nhỏ, chuyển xuống thanh dưới cùng. */}
 
-        {/* Bảng hướng dẫn gọn — nằm ở dải trống giữa hàng nút (~140px) và
-             đầu nhân vật (~335px): không che pill điểm, WIN, LIVE, nhân
-             vật, BXH hay thanh dưới. Luôn hiện (trừ lúc đếm ngược 3s và lúc
-             banner thắng chiếm giữa màn), bấm "Cách chơi" để xem bản đầy đủ. */}
+        {/* Bảng hướng dẫn gọn — dời lên 100px (nút góc trên đã xuống dưới)
+             và siết chặt (font 12, padding 5px) để thêm 2 dòng quà 100 xu
+             mà đáy bảng vẫn trên pill TEAM: bảng kết thúc ~251px, pill
+             TEAM neo ngay dưới đáy bảng (xem --nvb-guide-bottom). Luôn
+             hiện (trừ lúc đếm ngược 3s và lúc banner thắng chiếm giữa màn),
+             bấm "Cách chơi" ở thanh dưới để xem bản đầy đủ. */}
         {phase !== 'roundEnd' && phase !== 'matchEnd' && phase !== 'countdown' && (
-          <div className="nvb-guide" aria-label="Cách chơi">
-            {GUIDE_ROWS.map((r, i) => (
+          <div className="nvb-guide" aria-label="Cách chơi" ref={guideRef}>
+            {GUIDE_ROWS.map((r, i) => r.wide ? (
+              <span key={i} className={`nvb-guide-cell wide ${r.center ? 'center' : ''} ${r.side === 'A' ? 'pink' : r.side === 'B' ? 'blue' : 'both'}`}>
+                {r.label ? (
+                  <><span className="nvb-guide-ic" aria-hidden="true">💯</span><span><b>{r.label}</b> {r.list}</span></>
+                ) : (
+                  <><span className="nvb-guide-ic" aria-hidden="true"><GuideIcon row={r} /></span><span>{r.left} <b>→ {r.right}</b></span></>
+                )}
+              </span>
+            ) : (
               <span key={i} className={`nvb-guide-cell ${r.side === 'A' ? 'pink' : r.side === 'B' ? 'blue' : 'both'}`}>
                 <span className="nvb-guide-ic" aria-hidden="true"><GuideIcon row={r} /></span>
                 <span>{r.left} <b>→ {r.right}</b></span>
@@ -283,7 +312,7 @@ function DisplayGame() {
           <div className="pml-guide">
             <button className="pml-guide-x" onClick={() => setGuideOpen(false)} aria-label="Đóng hướng dẫn"><X size={18} /></button>
             <h3><BookOpen size={17} /> CÁCH CHƠI</h3>
-            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Quà 100 xu cũng gán cố định: bó hoa, thả tim, tim, hộp quà, buổi sáng, cuối tuần → <b>Nữ</b>; tay cầm, súng tiền, GG siêu khủng, mũ ria mép, thiên hà, ú òa, corgi → <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
+            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Quà 100 xu cũng gán cố định: bó hoa, thả tim, tim, hộp quà, buổi sáng, cuối tuần, hạc giấy → <b>Nữ</b>; tay cầm, súng tiền, GG siêu khủng, mũ ria mép, thiên hà, ú òa, corgi → <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
             <p><Zap size={14} /> Vạch giữa chạy theo chênh lệch điểm — phe nào mạnh hơn sẽ đẩy phe kia qua. Chạm mép bên kia là thắng màn ngay. Hết 60 giây thì phe điểm cao hơn thắng.</p>
             <p><Heart size={14} fill="currentColor" /> Thả tim — <b>mỗi người thả đủ 100 tim thì +10 cho Nữ</b> (tối đa +60/màn). Tim không đẩy cho Nam.</p>
             <p><Users size={14} /> Theo dõi — <b>1 lượt follow = +10 cho Nam</b> (tối đa +60/màn).</p>
@@ -292,13 +321,17 @@ function DisplayGame() {
           </div>
         )}
 
-        {/* Thanh dưới — CHỈ 1 hàng (3 ô) để hộp BXH hạ xuống đáy (60px)
-             không cắt vào hàng nào: ô "Màn · giây" bỏ vì dòng MÀN trên
-             cùng đã hiện đủ; ô điểm rút gọn "Nữ 310 · Nam 226". */}
+        {/* Thanh dưới — 1 hàng: 3 ô thông tin + 2 nút nhỏ (loa + Cách
+             chơi, thu nhỏ 28px, chuyển từ góc trên xuống đây 2026-11-21
+             19:25 theo lệnh tấn). Ô điểm rút gọn "Nữ 310 · Nam 226". */}
         <div className="pml-bottombar">
-          <span><Users size={14} /> Nữ {scoreA} · Nam {scoreB}</span>
+          <span>Nữ {scoreA} · Nam {scoreB}</span>
           <span><Heart size={14} fill="currentColor" /> {s?.likes || 0}</span>
           <span>{connected ? <><span className="pml-dot on sm" /> Đã nối live</> : <><span className="pml-dot sm" /> Chưa nối live</>}</span>
+          <button className="pml-bb-btn" onClick={game.toggleMute} aria-label="Bật/tắt tiếng">
+            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+          {!present && <button className="pml-bb-btn" onClick={() => setGuideOpen(!guideOpen)} aria-label="Cách chơi"><BookOpen size={14} /></button>}
         </div>
       </div>
     </div>

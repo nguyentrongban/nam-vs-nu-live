@@ -1149,10 +1149,10 @@ test('VỊ TRÍ 3D: mỗi người cách vạch giữa đúng CHAR_OFFSET, khôn
   assert.ok(boyX - girlX >= 1.5, 'tâm 2 người cách nhau ≥ 1,5m — mặt không chạm nhau')
   assert.deepEqual(fighterWorldPositions(NaN, halfW), fighterWorldPositions(50, halfW), 'divider rác thì coi như giữa')
 })
-test('BẢNG HƯỚNG DẪN: 7 dòng — 4 quà (ảnh TikTok thật) + tim/follow/cmt, đúng luật 17:51', () => {
-  assert.equal(GUIDE_ROWS.length, 7, '4 dòng quà + 3 dòng tương tác')
-  assert.deepEqual(GUIDE_ROWS.map((r) => r.side), ['A', 'B', 'B', 'A', 'A', 'B', null])
-  const text = GUIDE_ROWS.map((r) => `${r.left} → ${r.right}`).join(' | ')
+test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/follow/cmt + 2 dòng rộng quà 100 xu, đúng luật 17:51 + 19:25', () => {
+  assert.equal(GUIDE_ROWS.length, 9, '4 dòng quà + 3 dòng tương tác + 2 dòng rộng 100 xu')
+  assert.deepEqual(GUIDE_ROWS.map((r) => r.side), ['A', 'B', 'B', 'A', 'A', 'B', null, 'A', 'B'])
+  const text = GUIDE_ROWS.map((r) => (r.wide && r.label ? `${r.label} ${r.list}` : `${r.left} → ${r.right}`)).join(' | ')
   assert.ok(text.includes('Hoa hồng → Nữ'), 'hoa hồng → Nữ')
   assert.ok(text.includes('Quà TikTok → Nam'), 'quà TikTok → Nam')
   assert.ok(text.includes('Nước hoa → Nam'), 'nước hoa → Nam (chuyển phe 17:51)')
@@ -1165,9 +1165,34 @@ test('BẢNG HƯỚNG DẪN: 7 dòng — 4 quà (ảnh TikTok thật) + tim/foll
   }
   for (const r of GUIDE_ROWS) {
     assert.ok(!('icon' in r), 'không còn icon emoji chung chung')
-    assert.ok(r.left && r.right, 'mỗi dòng có chữ')
+    if (r.wide && r.label) assert.ok(r.label && r.list, 'dòng rộng 100 xu có nhãn + danh sách')
+    else assert.ok(r.left && r.right, 'mỗi dòng có chữ')
   }
-  for (const r of GUIDE_ROWS.slice(4)) assert.ok(r.lucide, 'dòng tương tác dùng icon UI của game')
+  for (const r of GUIDE_ROWS.slice(4, 7)) assert.ok(r.lucide, 'dòng tương tác dùng icon UI của game')
+  // 2 dòng rộng 100 xu: đủ 14 món đã gán phe (Nữ 7 + Nam 7, kể cả Hạc giấy 99 xu = 100 lực).
+  const wide = GUIDE_ROWS.filter((r) => r.wide && r.label)
+  assert.equal(wide.length, 2, '2 dòng rộng quà 100 xu')
+  assert.equal(wide[0].side, 'A')
+  assert.equal(wide[1].side, 'B')
+  const girl100 = ['Bó hoa', 'Thả tim', 'Tim', 'Hộp quà', 'Buổi sáng', 'Cuối tuần', 'Hạc giấy']
+  const boy100 = ['Tay cầm', 'Súng tiền', 'GG siêu khủng', 'Mũ ria mép', 'Thiên hà', 'Ú òa', 'Corgi']
+  for (const name of girl100) assert.ok(wide[0].list.includes(name), `100 xu Nữ có ${name}`)
+  for (const name of boy100) assert.ok(wide[1].list.includes(name), `100 xu Nam có ${name}`)
+  // Đối chiếu bảng phe: mỗi món trong 2 dòng rộng phải về đúng phe đó.
+  assert.equal(giftTeamFor('bó hoa'), 'A')
+  assert.equal(giftTeamFor('thả tim'), 'A')
+  assert.equal(giftTeamFor('tim'), 'A')
+  assert.equal(giftTeamFor('hộp quà bóng bay'), 'A')
+  assert.equal(giftTeamFor('buổi sáng tốt lành'), 'A')
+  assert.equal(giftTeamFor('cuối tuần vui vẻ'), 'A')
+  assert.equal(giftTeamFor('hạc giấy'), 'A')
+  assert.equal(giftTeamFor('tay cầm chơi game'), 'B')
+  assert.equal(giftTeamFor('súng bắn tiền'), 'B')
+  assert.equal(giftTeamFor('gg siêu khủng'), 'B')
+  assert.equal(giftTeamFor('mũ và ria mép'), 'B')
+  assert.equal(giftTeamFor('thiên hà'), 'B')
+  assert.equal(giftTeamFor('ú òa'), 'B')
+  assert.equal(giftTeamFor('chó corgi'), 'B')
 })
 
 test('BẢNG PHE QUÀ (17:51): nước hoa → Nam, bánh vòng → Nữ; hoa hồng → Nữ, TikTok → Nam', () => {

@@ -413,16 +413,26 @@ input, select { font-family: inherit; }
 
 .pml-bottombar {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: flex; gap: 7px; justify-content: center; flex-wrap: wrap;
-  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, rgba(4, 32, 20, .6));
-  font-size: 13px; font-weight: 800;
+  font-size: 12px; font-weight: 800;
 }
 .pml-bottombar span {
   background: rgba(8, 38, 26, .6); border: 1px solid rgba(255,255,255,.18);
-  border-radius: 999px; padding: 6px 11px; backdrop-filter: blur(6px);
+  border-radius: 999px; padding: 5px 8px; backdrop-filter: blur(6px);
   box-shadow: 0 3px 10px rgba(0,0,0,.25); text-shadow: 0 1px 2px rgba(0,0,0,.4); white-space: nowrap;
 }
+/* 2 nút nhỏ ở thanh dưới (loa + Cách chơi, icon-only 28px — chuyển từ
+   góc trên xuống đây 2026-11-21 19:25, góc trên để trống cho gọn). */
+.pml-bb-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: none; padding: 0; cursor: pointer;
+  background: rgba(8, 38, 26, .6); border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px; color: #fff; backdrop-filter: blur(6px);
+  box-shadow: 0 3px 10px rgba(0,0,0,.25);
+}
+.pml-bb-btn svg { display: block; }
 
 /* ── Admin ── */
 .pml-admin { height: 100dvh; background: #f1f5f9; color: #0f172a; padding: 0 0 40px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -524,8 +534,13 @@ input, select { font-family: inherit; }
 .nvb-flame.bright { opacity: .96; }
 .nvb-flame.dark { opacity: .85; }
 @keyframes nvb-flick { from { transform: scaleY(1); } to { transform: scaleY(1.08) skewX(-1.5deg); } }
+/* Nhãn TEAM G / TEAM B ở 2 mép — neo ngay dưới đáy bảng hướng dẫn
+   (2026-11-21 19:25): top = đáy bảng đo thật + 8px (biến CSS
+   --nvb-guide-bottom do App.jsx đo bằng ResizeObserver; dự phòng
+   255px = đáy bảng cũ trên màn 773px). Trước đây top: 33% nên bảng
+   cao lên là đè mất nửa pill trên điện thoại thật. */
 .nvb-teamtag {
-  position: absolute; top: 33%; z-index: 5; font-size: 10px; font-weight: 900; letter-spacing: .4px;
+  position: absolute; top: calc(var(--nvb-guide-bottom, 255px) + 8px); z-index: 5; font-size: 10px; font-weight: 900; letter-spacing: .4px;
   background: rgba(0,0,0,.4); color: #fff; border-radius: 999px; padding: 4px 8px;
   transition: opacity .2s;
 }
@@ -636,10 +651,6 @@ input, select { font-family: inherit; }
   background: rgba(0,0,0,.5); color: #fff; font-size: 12px; font-weight: 800;
   padding: 4px 11px; border-radius: 999px; white-space: nowrap;
 }
-.nvb-controls {
-  position: absolute; top: calc(108px + env(safe-area-inset-top)); right: 10px; z-index: 7;
-  display: flex; gap: 6px; align-items: center;
-}
 .nvb-win {
   position: absolute; top: 26%; left: 0; right: 0; z-index: 9; pointer-events: none;
   display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
@@ -709,22 +720,25 @@ input, select { font-family: inherit; }
 .pml-stage:has(.nvb-fxslot.pill .pml-toast) .nvb-teamtag { opacity: 0; }
 
 /* ── Bảng hướng dẫn gọn (luôn hiện, trừ lúc banner thắng) ───────────────
-   Đặt ở dải trống giữa hàng nút (kết thúc ~140px) và đầu nhân vật (~335px):
-   trên là pill điểm / WIN / LIVE, dưới là nhân vật — không che gì. 5 dòng
-   luật v2, mỗi dòng 1 icon + vài chữ, nhìn là hiểu. Nút "Cách chơi" ở góc
-   trên mở bản hướng dẫn đầy đủ. */
+   Dời lên 100px (nút góc trên đã chuyển xuống thanh dưới) và siết chặt
+   (font 12, padding 5px) để thêm 2 dòng quà 100 xu mà đáy bảng vẫn trên
+   pill TEAM: bảng kết thúc ~251px, pill TEAM neo ngay dưới đáy bảng
+   (xem --nvb-guide-bottom). 6 dòng gọn + cmt + 2 dòng 100 xu (mỗi dòng
+   100 xu 2 hàng chữ, font 11). */
 .nvb-guide {
-  position: absolute; top: calc(148px + env(safe-area-inset-top)); left: 10px; right: 10px; z-index: 6;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px;
+  position: absolute; top: calc(100px + env(safe-area-inset-top)); left: 10px; right: 10px; z-index: 6;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px;
   background: rgba(8, 38, 26, .72); border: 1px solid rgba(255,255,255,.22);
-  border-radius: 14px; padding: 9px 11px; backdrop-filter: blur(6px);
+  border-radius: 14px; padding: 5px 10px; backdrop-filter: blur(6px);
   box-shadow: 0 6px 18px rgba(0,0,0,.3); pointer-events: none;
-  font-size: 13.5px; font-weight: 600; line-height: 1.4; color: #fff;
+  font-size: 12px; font-weight: 600; line-height: 1.35; color: #fff;
 }
 .nvb-guide-cell { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nvb-guide-cell:last-child { grid-column: 1 / -1; justify-content: center; }
+.nvb-guide-cell.wide { grid-column: 1 / -1; white-space: normal; overflow: visible; }
+.nvb-guide-cell.wide:not(.center) { font-size: 11px; line-height: 1.3; }
+.nvb-guide-cell.center { justify-content: center; }
 .nvb-guide-ic { font-size: 15px; line-height: 1; flex: none; display: inline-flex; align-items: center; justify-content: center; }
-.nvb-guide-ic img { width: 20px; height: 20px; object-fit: contain; display: block; }
+.nvb-guide-ic img { width: 16px; height: 16px; object-fit: contain; display: block; }
 .nvb-guide-ic svg { flex: none; display: block; }
 .nvb-guide-cell b { font-weight: 900; }
 .nvb-guide-cell.pink b { color: #ffc7e0; }
