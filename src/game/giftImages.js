@@ -11,9 +11,16 @@
 // Mũ và ria mép 99, Bó hoa/Thả tim/Tay cầm/Hộp quà bóng bay/GG siêu
 // khủng 100, Tim 199, Chó Corgi 299, Súng bắn tiền 500, Thiên hà 1000
 // (khớp beetgames.com — ảnh đã đối chiếu bằng mắt với ảnh streamer gửi).
-// Chưa có ảnh đúng tên: Bing Chilling, Cuối tuần vui vẻ, Buổi sáng tốt
-// lành, LIVE FEST 26, Đỉnh, Gói Quà tặng (khóa), Rương Báu là quà tương
-// tác (không có giá xu) — các món này dùng ảnh cùng bậc lực kéo.
+// Chưa có ảnh đúng tên: Bing Chilling, LIVE FEST 26, Đỉnh, Gói Quà tặng
+// (khóa), Rương Báu là quà tương tác (không có giá xu) — các món này dùng
+// ảnh cùng bậc lực kéo.
+// Buổi sáng tốt lành (399 xu) + Cuối tuần vui vẻ (599 xu) ĐÃ có ảnh đúng
+// tên từ 2026-11-22: cắt từ chính ảnh bảng quà TikTok trên điện thoại
+// streamer (IMG_3467.png) — artwork thật của TikTok, không tải được file
+// rời ở bất cứ trang danh sách quà nào (đã thử beetgames, scrollplay,
+// powerlive, streamtoearn, overtok, BetterTok, vcgamers, TikFinity —
+// không nơi nào có file ảnh 2 món này). Nền tối của bảng quà đã tách
+// bằng flood-fill từ viền, còn quầng sáng xanh mờ nhẹ quanh artwork.
 export const GIFT_IMAGES = [
   { keys: ['hoa hồng', 'rose'], src: '/gifts/rose.webp', power: 1 },
   { keys: ['tiktok'], src: '/gifts/tiktok.webp', power: 1 },
@@ -31,6 +38,8 @@ export const GIFT_IMAGES = [
   { keys: ['little kisses'], src: '/gifts/little_kisses.webp', power: 25 },
   { keys: ['bánh vòng', 'cheese donuts'], src: '/gifts/cheese_donuts.webp', power: 25 },
   { keys: ['hạc giấy', 'paper crane'], src: '/gifts/paper_crane.webp', power: 100 },
+  { keys: ['buổi sáng tốt lành', 'good morning'], src: '/gifts/good_morning.webp', power: 100 },
+  { keys: ['cuối tuần vui vẻ', 'happy weekend'], src: '/gifts/happy_weekend.webp', power: 100 },
   { keys: ['bó hoa', 'bouquet'], src: '/gifts/bouquet.webp', power: 100 },
   { keys: ['thả tim', 'hand hearts', 'hand heart'], src: '/gifts/hand_hearts.webp', power: 100 },
   { keys: ['tay cầm chơi game', 'game controller'], src: '/gifts/game_controller.webp', power: 100 },

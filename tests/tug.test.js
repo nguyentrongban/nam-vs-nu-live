@@ -1190,9 +1190,18 @@ test('BẢNG HƯỚNG DẪN: 9 dòng — 4 quà (ảnh TikTok thật) + tim/foll
       assert.ok(existsSync(new URL(`../public${src}`, import.meta.url)), `${g} file icon tồn tại: ${src}`)
     }
   }
-  // 2 món chưa có ảnh đúng tên dùng ảnh cùng bậc lực (hạc giấy, power 100).
-  assert.equal(giftImageSrc('buổi sáng tốt lành'), null, 'buổi sáng tốt lành chưa có ảnh đúng tên')
-  assert.equal(giftImageSrc('cuối tuần vui vẻ'), null, 'cuối tuần vui vẻ chưa có ảnh đúng tên')
+  // 2 món đã có ảnh đúng tên từ 2026-11-22 (cắt từ ảnh bảng quà TikTok
+  // trên điện thoại streamer IMG_3467 — xem giftImages.js): không còn
+  // dùng ảnh hạc giấy tạm nữa, và 7 icon dòng Nữ phải khác nhau hoàn toàn.
+  assert.equal(giftImageSrc('buổi sáng tốt lành'), '/gifts/good_morning.webp', 'buổi sáng tốt lành có ảnh đúng tên')
+  assert.equal(giftImageSrc('good morning'), '/gifts/good_morning.webp', 'good morning (tên Anh) có ảnh đúng tên')
+  assert.equal(giftImageSrc('cuối tuần vui vẻ'), '/gifts/happy_weekend.webp', 'cuối tuần vui vẻ có ảnh đúng tên')
+  assert.equal(giftImageSrc('happy weekend'), '/gifts/happy_weekend.webp', 'happy weekend (tên Anh) có ảnh đúng tên')
+  for (const src of ['/gifts/good_morning.webp', '/gifts/happy_weekend.webp']) {
+    assert.ok(existsSync(new URL(`../public${src}`, import.meta.url)), `file icon tồn tại: ${src}`)
+  }
+  const girl100Srcs = new Set(girl100.map((g) => giftImageSrc(g) || giftImageForPower(100)))
+  assert.equal(girl100Srcs.size, 7, 'dòng Nữ 100 xu: 7 icon khác nhau, không còn 3 hạc giấy')
   assert.equal(giftImageForPower(100), '/gifts/paper_crane.webp', 'ảnh thay thế cùng bậc 100 lực = hạc giấy')
   // Đối chiếu bảng phe: mỗi món trong 2 dòng rộng phải về đúng phe đó.
   assert.equal(giftTeamFor('bó hoa'), 'A')
