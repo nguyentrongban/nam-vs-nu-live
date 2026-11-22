@@ -283,6 +283,7 @@ export const DEFAULT_SETTINGS = {
   giftMap: { ...DEFAULT_GIFT_MAP },
   streamerId: '',
   soundOn: true,
+  welcomeVoiceOn: true,     // đọc lời chào "Chào [tên] đã vào live!" khi có người vào (tối đa 1 câu/8 giây, nhường quà/thắng). Tắt ở Admin → Cài đặt.
   voiceOn: true,            // giọng đọc bình luận (FPT.AI, hết lượt thì tự chuyển giọng máy)
   voice: 'banmai',          // giọng FPT.AI mặc định: Ban Mai — nữ, miền Bắc
 }

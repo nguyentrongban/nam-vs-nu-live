@@ -12,6 +12,7 @@ import { ATTACK_SFX, ATTACK_SFX_HIT_DELAY_S, attackSfxFor, SoundEngine } from '.
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate, ATTACK_MS_SMALL, ATTACK_MS_BIG, attackDurationFor, isAttacking, resolveFighterPose, nextAttackState, nextPressureState, isPressuring, PRESSURE_MS, blockyLeanForSide } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
+import { VoiceEngine, WelcomeGate, WELCOME_GAP_MS, cleanSpeakName, voiceTextWelcome } from '../src/game/voice.js'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
 import { TikTokWS, WS_STATUS } from '../src/game/wsClient.js'
 import { detectProvince, provinceInfo, provinceRank } from '../src/game/provinces.js'
@@ -1585,6 +1586,49 @@ test('LINK NỐI 1 CHẠM: địa chỉ có/không wss:// và /ws đều ra cùn
   for (const base of ['abc.onrender.com', 'abc.onrender.com/', 'abc.onrender.com/ws', 'wss://abc.onrender.com', 'wss://abc.onrender.com/ws', 'https://abc.onrender.com/ws']) {
     assert.strictEqual(buildWsUrl(base, 'K'), want, base)
   }
+})
+
+test('LỜI CHÀO: tối đa 1 câu mỗi 8 giây, đông người vào cùng lúc chỉ đọc 1 người', () => {
+  assert.strictEqual(WELCOME_GAP_MS, 8000)
+  const g = new WelcomeGate()
+  assert.strictEqual(g.tryWelcome({ nickname: 'Lan', now: 1000 }), 'Chào Lan đã vào live!')
+  // 5 người vào dồn trong 8 giây → bỏ qua hết, không xếp hàng
+  for (let t = 1100; t < 9000; t += 1500) assert.strictEqual(g.tryWelcome({ nickname: `K${t}`, now: t }), '')
+  assert.strictEqual(g.tryWelcome({ nickname: 'Minh', now: 9000 }), 'Chào Minh đã vào live!')
+})
+
+test('LỜI CHÀO: đang đọc / có câu quà chờ thì bỏ qua, không chen ngang', () => {
+  const g = new WelcomeGate()
+  assert.strictEqual(g.tryWelcome({ nickname: 'Lan', now: 0, busy: true }), '')
+  // bị bỏ qua vì bận thì không tính lượt — rảnh là chào được ngay
+  assert.strictEqual(g.tryWelcome({ nickname: 'Lan', now: 10 }), 'Chào Lan đã vào live!')
+  const v = new VoiceEngine({ enabled: true })
+  assert.strictEqual(v.isBusy(), false)
+  v.speak('Hoa tặng Bó hoa!', 'normal')
+  assert.strictEqual(v.isBusy(), true)
+})
+
+test('LỜI CHÀO: tắt bằng cài đặt + nút giọng đọc tổng vẫn tắt được hết', () => {
+  assert.strictEqual(DEFAULT_SETTINGS.welcomeVoiceOn, true)
+  assert.strictEqual(DEFAULT_SETTINGS.voiceOn, true)
+  const g = new WelcomeGate()
+  assert.strictEqual(g.tryWelcome({ nickname: 'Lan', now: 0, enabled: false }), '')
+  const v = new VoiceEngine({ enabled: false })
+  assert.strictEqual(v.speak(voiceTextWelcome('Lan'), 'low'), false)
+  assert.strictEqual(v.isBusy(), false)
+})
+
+test('LỜI CHÀO: tên rỗng bỏ qua, tên dài cắt 24 ký tự, bỏ emoji', () => {
+  const g = new WelcomeGate()
+  assert.strictEqual(g.tryWelcome({ nickname: '', now: 0 }), '')
+  assert.strictEqual(g.tryWelcome({ nickname: '🔥🔥✨', now: 0 }), '')
+  assert.strictEqual(cleanSpeakName('Ngọc Ánh 🌸💕'), 'Ngọc Ánh')
+  assert.strictEqual(cleanSpeakName('a'.repeat(40)).length, 24)
+  assert.strictEqual(cleanSpeakName('  Tuấn___Anh  '), 'Tuấn Anh')
+  assert.strictEqual(voiceTextWelcome('Hà My'), 'Chào Hà My đã vào live!')
+  const ev = normalizeEvent({ type: 'join', nickname: 'Hà My', userId: 'hm1' })
+  assert.strictEqual(ev.kind, 'join')
+  assert.strictEqual(ev.nickname, 'Hà My')
 })
 
 console.log('\n⚔️ NAM vs NỮ LIVE — test logic đẩy (vạch giữa chạm mép = thắng màn)')

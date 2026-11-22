@@ -15,7 +15,7 @@ import { TikTokWS, WS_STATUS, readConnectParams } from './wsClient'
 import { SoundEngine } from './sound'
 import { PRESSURE_MS } from './poses'
 import { MusicEngine } from './music'
-import { VoiceEngine, voiceTextBxh, voiceTextFinal, voiceTextGift, voiceTextLikes, voiceTextMatchWin, voiceTextRoundStart, voiceTextRoundWin } from './voice'
+import { VoiceEngine, WelcomeGate, voiceTextBxh, voiceTextFinal, voiceTextGift, voiceTextLikes, voiceTextMatchWin, voiceTextRoundStart, voiceTextRoundWin } from './voice'
 import { onSyncMessage, postHeartbeat, postHello, postState } from './sync'
 
 const SETTINGS_KEY = 'pml-settings-v1'
@@ -166,6 +166,8 @@ export function useTugOfWar() {
   // ── Giọng đọc bình luận (FPT.AI Ban Mai mặc định; hết lượt / lỗi thì tự
   // chuyển giọng máy miễn phí trên điện thoại, thử lại FPT.AI sau 5 phút).
   const voiceRef = useRef(null)
+  const welcomeGateRef = useRef(null)
+  if (!welcomeGateRef.current) welcomeGateRef.current = new WelcomeGate()
   if (!voiceRef.current) {
     const settings0 = loadSettings()
     voiceRef.current = new VoiceEngine({
@@ -382,6 +384,14 @@ export function useTugOfWar() {
     if (ev.kind === 'join') {
       s.feed.push({ id: `f${Date.now()}`, kind: 'join', text: `👋 ${ev.nickname} vừa vào xem live!`, at: s.now })
       pushToast(s, `👋 ${ev.nickname} vừa vào xem!`)
+      // Giọng đọc lời chào (ưu tiên thấp nhất, 1 câu/8 giây, nhường quà).
+      const v = voiceRef.current
+      if (v && v.enabled && s.settings.welcomeVoiceOn !== false) {
+        const text = welcomeGateRef.current.tryWelcome({
+          nickname: ev.nickname, now: Date.now(), enabled: true, busy: v.isBusy(),
+        })
+        if (text) v.speak(text, 'low')
+      }
       takeSnap()
       return
     }
@@ -502,7 +512,7 @@ export function useTugOfWar() {
       } else if (msg.cmd === 'testVoice') {
         // Thử giọng đọc: đọc thẳng bằng giọng máy (không chờ FPT.AI), kể
         // cả khi đang tắt tiếng (để streamer kiểm tra giọng có kêu không).
-        voiceRef.current?.speakDeviceTest('Hà Nội đang dẫn đầu, thử giọng đọc bình luận!')
+        voiceRef.current?.speakDeviceTest('Chào bạn đã vào live! Đây là giọng đọc thử.')
         takeSnap()
       } else if (msg.cmd === 'musicToggle') {
         // Nhạc nền: bật/tắt từ Admin (điều khiển màn hiển thị từ xa).
@@ -836,7 +846,7 @@ export function useTugOfWar() {
   // thái giọng máy (mấy giọng / có tiếng Việt không) để chẩn đoán.
   const testVoice = useCallback(() => {
     const info = voiceRef.current?.getVoiceInfo?.() || null
-    voiceRef.current?.speakDeviceTest('Hà Nội đang dẫn đầu, thử giọng đọc bình luận!')
+    voiceRef.current?.speakDeviceTest('Chào bạn đã vào live! Đây là giọng đọc thử.')
     const s = stateRef.current
     if (info) {
       const msg = info.count === 0

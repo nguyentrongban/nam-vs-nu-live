@@ -3,7 +3,7 @@
 // BroadcastChannel (mở 2 tab cùng trình duyệt). Không chứa logic game.
 
 import { useEffect, useRef, useState } from 'react'
-import { ClipboardList, Coins, Flame, Gift, Heart, MessageCircle, Pause, Play, Plug, PlugZap, Plus, RotateCcw, Scale, Settings, TestTube, Trash2, Trophy, User, Users, Zap } from 'lucide-react'
+import { ClipboardList, Coins, Flame, Gift, Heart, MessageCircle, Pause, Play, Plug, PlugZap, Plus, RotateCcw, Scale, Settings, TestTube, Trash2, Volume2, Trophy, User, Users, Zap } from 'lucide-react'
 import { onSyncMessage, postCmd, postSnapshotReq } from './game/sync'
 import GiftIcon from './components/GiftIcon'
 import { BALANCE_NOTE, DEFAULT_SETTINGS, TEAMS, giftPrice, giftTier } from './game/engine'
@@ -278,6 +278,18 @@ export default function AdminPage() {
             <input type="checkbox" checked={settings.autoPlay !== false} onChange={(e) => updateSettings({ autoPlay: e.target.checked })} />
             {' '}Tự động chạy (treo máy): mở trang là tự bắt đầu, hết màn tự sang màn sau, hết trận tự đánh trận mới — không cần bấm
           </label>
+          <label className="pml-admin-check">
+            <input type="checkbox" checked={settings.voiceOn !== false} onChange={(e) => updateSettings({ voiceOn: e.target.checked })} />
+            {' '}Bật giọng đọc (giọng máy của điện thoại) — tắt ô này là tắt hết mọi câu đọc
+          </label>
+          <label className="pml-admin-check">
+            <input type="checkbox" checked={settings.welcomeVoiceOn !== false} onChange={(e) => updateSettings({ welcomeVoiceOn: e.target.checked })} />
+            {' '}Đọc lời chào người vào live ("Chào [tên] đã vào live!", tối đa 1 câu mỗi 8 giây, nhường quà đọc trước)
+          </label>
+          <div className="pml-admin-btns">
+            <button onClick={() => { postCmd({ cmd: 'testVoice' }); flash('Đã gửi câu đọc thử sang màn game. Không nghe thấy thì mở Cách chơi trên màn game và bấm Đọc thử ở đó.') }}><span className="pml-ic"><Volume2 size={15} /></span> Đọc thử giọng</button>
+          </div>
+          <p className="pml-admin-note">Giọng chỉ kêu sau khi đã chạm màn game 1 lần. iPhone hay chặn nút đọc thử từ tab Admin — chắc ăn nhất là bấm Đọc thử ngay trên màn game (nút Cách chơi → Đọc thử giọng).</p>
           <p className="pml-admin-note">
             API lưu kết quả:{' '}{import.meta.env?.VITE_API_URL ? 'đã gắn địa chỉ.' : 'chưa gắn — kết quả trận chỉ hiện trên màn hình, không lưu lên mạng.'}
           </p>

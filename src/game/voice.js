@@ -44,6 +44,44 @@ export function voiceTextBxh(province, gifter) {
   return `Bảng xếp hạng: ${parts.join('. ')}.`
 }
 
+// ─── Lời chào người vào live (NAM vs NỮ, 2026-11-22, tấn duyệt 23:26) ──
+// "Chào [tên] đã vào live!" — ưu tiên THẤP NHẤT: tối đa 1 câu mỗi 8 giây,
+// đông người vào cùng lúc chỉ đọc 1 người (các người khác bỏ qua, không
+// xếp hàng dồn), đang đọc / đang có câu chờ (quà, thắng) thì bỏ qua.
+export const WELCOME_GAP_MS = 8000
+export const WELCOME_NAME_MAX = 24
+
+// Làm sạch tên cho giọng đọc: bỏ emoji / ký hiệu lạ (giữ chữ có dấu, số,
+// khoảng trắng, . _ -), gộp khoảng trắng, cắt tối đa 24 ký tự. Rỗng → ''.
+export function cleanSpeakName(name) {
+  let t = String(name || '')
+  try { t = t.replace(/[^\p{L}\p{M}\p{N}\s._-]/gu, ' ') } catch { /* ignore */ }
+  t = t.replace(/[._-]{2,}/g, ' ').replace(/\s+/g, ' ').trim()
+  // Tên chỉ còn dấu chấm / gạch → coi như rỗng.
+  if (!/[\p{L}\p{N}]/u.test(t)) return ''
+  if ([...t].length > WELCOME_NAME_MAX) t = [...t].slice(0, WELCOME_NAME_MAX).join('').trim()
+  return t
+}
+
+export function voiceTextWelcome(name) {
+  const n = cleanSpeakName(name)
+  return n ? `Chào ${n} đã vào live!` : ''
+}
+
+// Cổng chống spam lời chào (thuần logic, test được). tryWelcome trả về câu
+// cần đọc hoặc '' nếu bỏ qua.
+export class WelcomeGate {
+  constructor(gapMs = WELCOME_GAP_MS) { this.gapMs = gapMs; this.lastAt = -Infinity }
+  tryWelcome({ nickname, now = Date.now(), enabled = true, busy = false } = {}) {
+    if (!enabled || busy) return ''
+    if (now - this.lastAt < this.gapMs) return ''
+    const text = voiceTextWelcome(nickname)
+    if (!text) return ''
+    this.lastAt = now
+    return text
+  }
+}
+
 export class VoiceEngine {
   constructor({ apiBase = '', voice = 'banmai', enabled = true, onModeChange = null, useFpt = false } = {}) {
     this.apiBase = String(apiBase || '').replace(/\/$/, '')
@@ -64,6 +102,16 @@ export class VoiceEngine {
   }
 
   getMode() { return this.mode }
+
+  // Đang đọc hoặc còn câu chờ (quà / thắng…) → lời chào phải nhường.
+  isBusy() {
+    if (this.speaking || this.queue.length > 0) return true
+    try {
+      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+      if (synth && (synth.speaking || synth.pending)) return true
+    } catch { /* ignore */ }
+    return false
+  }
 
   setEnabled(on) {
     this.enabled = on !== false

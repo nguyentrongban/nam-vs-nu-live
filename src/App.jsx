@@ -329,6 +329,7 @@ function DisplayGame() {
           <div className="pml-guide">
             <button className="pml-guide-x" onClick={() => setGuideOpen(false)} aria-label="Đóng hướng dẫn"><X size={18} /></button>
             <h3><BookOpen size={17} /> CÁCH CHƠI</h3>
+            <button className="pml-guide-voice" onClick={game.testVoice}><Volume2 size={14} /> Đọc thử giọng</button>
             <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Quà 100 xu cũng gán cố định: bó hoa, thả tim, tim, hộp quà, buổi sáng, cuối tuần, hạc giấy → <b>Nữ</b>; tay cầm, súng tiền, GG siêu khủng, mũ ria mép, thiên hà, ú òa, corgi → <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
             <p><Zap size={14} /> Vạch giữa chạy theo chênh lệch điểm — phe nào mạnh hơn sẽ đẩy phe kia qua. Chạm mép bên kia là thắng màn ngay. Hết 60 giây thì phe điểm cao hơn thắng.</p>
             <p><Heart size={14} fill="currentColor" /> Thả tim — <b>mỗi người thả đủ 100 tim thì +10 cho Nữ</b> (tối đa +60/màn). Tim không đẩy cho Nam.</p>
