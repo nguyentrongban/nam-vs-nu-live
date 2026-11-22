@@ -6,6 +6,7 @@
 // cmt boy/nam +1 Nam, girl/nữ +1 Nữ (đẩy ngay, không vào đội, không +1 theo người).
 import assert from 'node:assert'
 import { existsSync } from 'node:fs'
+import { readConnectParams, buildWsUrl } from '../src/game/wsClient.js'
 import { giftImageSrc, giftImageForPower } from '../src/game/giftImages.js'
 import { ATTACK_SFX, ATTACK_SFX_HIT_DELAY_S, attackSfxFor, SoundEngine } from '../src/game/sound.js'
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate, ATTACK_MS_SMALL, ATTACK_MS_BIG, attackDurationFor, isAttacking, resolveFighterPose, nextAttackState, nextPressureState, isPressuring, PRESSURE_MS, blockyLeanForSide } from '../src/game/poses.js'
@@ -1568,6 +1569,23 @@ test('TIẾNG ĐÁNH: chống chồng (quà tới < 250ms thì bỏ tiếng sau)
   assert.equal(snd.playAttack(1, {}, 2000), false, 'tắt tiếng thì không phát tiếng đánh')
 })
 
+
+test('LINK NỐI 1 CHẠM: đọc ?ws&key, bỏ khỏi URL, giữ tham số khác', () => {
+  const r = readConnectParams('?demo=1&ws=abc.onrender.com&key=K%2B1&x=2')
+  assert.strictEqual(r.wsUrl, 'abc.onrender.com')
+  assert.strictEqual(r.key, 'K+1')
+  assert.strictEqual(r.cleanSearch, '?demo=1&x=2')
+  assert.strictEqual(readConnectParams('?ws=a&key=b').cleanSearch, '')
+  assert.strictEqual(readConnectParams('?demo=1'), null)
+  assert.strictEqual(readConnectParams(''), null)
+})
+
+test('LINK NỐI 1 CHẠM: địa chỉ có/không wss:// và /ws đều ra cùng URL', () => {
+  const want = 'wss://abc.onrender.com/ws?key=K'
+  for (const base of ['abc.onrender.com', 'abc.onrender.com/', 'abc.onrender.com/ws', 'wss://abc.onrender.com', 'wss://abc.onrender.com/ws', 'https://abc.onrender.com/ws']) {
+    assert.strictEqual(buildWsUrl(base, 'K'), want, base)
+  }
+})
 
 console.log('\n⚔️ NAM vs NỮ LIVE — test logic đẩy (vạch giữa chạm mép = thắng màn)')
 for (const line of results) console.log(line)

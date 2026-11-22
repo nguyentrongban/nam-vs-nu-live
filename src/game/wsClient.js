@@ -15,11 +15,13 @@ export const WS_STATUS = {
 export function buildWsUrl(baseUrl, accessCode) {
   let url = String(baseUrl || '').trim()
   if (!url) throw new Error('Chưa nhập địa chỉ kết nối')
+  url = url.replace(/^https:\/\//i, 'wss://').replace(/^http:\/\//i, 'ws://')
   if (!/^wss?:\/\//i.test(url)) {
     url = 'wss://' + url.replace(/^\/+/, '')
   }
   try {
     const u = new URL(url)
+    if (!u.pathname || u.pathname === '/') { u.pathname = '/ws'; url = u.toString() }
     const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname)
     if (!isLocal && u.protocol !== 'wss:') {
       u.protocol = 'wss:'
@@ -31,6 +33,18 @@ export function buildWsUrl(baseUrl, accessCode) {
     url = `${url}${sep}key=${encodeURIComponent(accessCode)}`
   }
   return url
+}
+
+// Link nối 1 chạm: ?ws=<địa chỉ>&key=<mã>. Trả { wsUrl, key, cleanSearch } hoặc null.
+// cleanSearch = chuỗi query sau khi bỏ ws + key (giữ các tham số khác như demo).
+export function readConnectParams(search) {
+  const sp = new URLSearchParams(search || '')
+  const wsUrl = (sp.get('ws') || '').trim()
+  if (!wsUrl) return null
+  const key = (sp.get('key') || '').trim()
+  sp.delete('ws'); sp.delete('key')
+  const rest = sp.toString()
+  return { wsUrl, key, cleanSearch: rest ? '?' + rest : '' }
 }
 
 export class TikTokWS {

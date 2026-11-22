@@ -11,7 +11,7 @@ import {
 } from './engine'
 import { regionInfo, detectRegion } from './regions'
 import { createSeqTracker, normalizeEvent, parseCommand } from './adapter'
-import { TikTokWS, WS_STATUS } from './wsClient'
+import { TikTokWS, WS_STATUS, readConnectParams } from './wsClient'
 import { SoundEngine } from './sound'
 import { PRESSURE_MS } from './poses'
 import { MusicEngine } from './music'
@@ -684,6 +684,14 @@ export function useTugOfWar() {
       },
     })
     wsRef.current = ws
+    // Link nối 1 chạm: ?ws=...&key=... → lưu, nối, rồi xóa khỏi thanh địa chỉ
+    try {
+      const link = readConnectParams(window.location.search)
+      if (link) {
+        localStorage.setItem(WS_KEY, JSON.stringify({ wsUrl: link.wsUrl, key: link.key }))
+        window.history.replaceState(null, '', window.location.pathname + link.cleanSearch + window.location.hash)
+      }
+    } catch { /* ignore */ }
     const saved = loadWs()
     if (saved.wsUrl) ws.connect(saved.wsUrl, saved.key || '')
     return () => ws.disconnect(true)
