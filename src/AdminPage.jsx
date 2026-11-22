@@ -275,8 +275,8 @@ export default function AdminPage() {
             {' '}Bật âm thanh vui (tổng hợp, không cần file nhạc)
           </label>
           <label className="pml-admin-check">
-            <input type="checkbox" checked={settings.autoPlay !== false} onChange={(e) => updateSettings({ autoPlay: e.target.checked })} />
-            {' '}Tự động chạy (treo máy): mở trang là tự bắt đầu, hết màn tự sang màn sau, hết trận tự đánh trận mới — không cần bấm
+            <input type="checkbox" checked={settings.autoPlay !== false} onChange={(e) => updateSettings({ autoPlay: e.target.checked, autoPlayChosen: true })} />
+            {' '}Tự động chạy (treo máy): mở trang là tự bắt đầu, hết màn tự sang màn sau, hết trận tự đánh trận mới — không cần bấm (mặc định TẮT: TikTok phạt live treo máy không người dẫn — chỉ bật khi bạn đang ngồi dẫn)
           </label>
           <label className="pml-admin-check">
             <input type="checkbox" checked={settings.voiceOn !== false} onChange={(e) => updateSettings({ voiceOn: e.target.checked })} />

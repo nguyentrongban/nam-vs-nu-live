@@ -12,7 +12,8 @@ import { ATTACK_SFX, ATTACK_SFX_HIT_DELAY_S, attackSfxFor, SoundEngine } from '.
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate, ATTACK_MS_SMALL, ATTACK_MS_BIG, attackDurationFor, isAttacking, resolveFighterPose, nextAttackState, nextPressureState, isPressuring, PRESSURE_MS, blockyLeanForSide } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
-import { VoiceEngine, WelcomeGate, WELCOME_GAP_MS, cleanSpeakName, voiceTextWelcome } from '../src/game/voice.js'
+import { VoiceEngine, WelcomeGate, WELCOME_GAP_MS, cleanSpeakName, voiceTextWelcome, voiceTextGift, voiceTextFinal, voiceTextLikes } from '../src/game/voice.js'
+import { readFileSync } from 'node:fs'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
 import { TikTokWS, WS_STATUS } from '../src/game/wsClient.js'
 import { detectProvince, provinceInfo, provinceRank } from '../src/game/provinces.js'
@@ -623,7 +624,7 @@ test('đủ 2 phe: Nữ (GIRL, hồng) vs Nam (BOY, xanh)', () => {
 
 // ── 13. Tiến thời gian thực: tab nền (dt lớn) vẫn đúng giờ ────────────────
 test('đếm ngược + hết giờ màn chạy đúng với dt lớn', () => {
-  const s = createMatch({ ...DEFAULT_SETTINGS, giftMap: { ...DEFAULT_SETTINGS.giftMap } })
+  const s = createMatch({ ...DEFAULT_SETTINGS, autoPlay: true, giftMap: { ...DEFAULT_SETTINGS.giftMap } })
   startMatch(s)
   assert.equal(s.phase, 'countdown')
   advance(s, 3.5)
@@ -654,6 +655,7 @@ test('tự động tắt (autoPlay=false): hết màn thì về chờ như cũ',
 
 test('tự động: hết trận thì tự bắt đầu trận mới (điểm màn reset, BXH giữ)', () => {
   const s = freshMatch()
+  s.settings.autoPlay = true // treo máy bật tay (mặc định đã TẮT từ 2026-11-22)
   recordGift(s, 'hoa', 'Hoa', 125, 0, '')
   s.teams.A.roundWins = 1
   endRound(s, 'A') // 2–0 → vô địch
@@ -694,8 +696,8 @@ test('cmt/tim/follow tính điểm cả lúc đang đếm ngược (vừa tự b
   assert.equal(s.roundScore.B, 11)
 })
 
-test('autoPlay mặc định BẬT trong DEFAULT_SETTINGS', () => {
-  assert.equal(DEFAULT_SETTINGS.autoPlay, true)
+test('autoPlay (treo máy) mặc định TẮT trong DEFAULT_SETTINGS (TikTok phạt live không người dẫn)', () => {
+  assert.equal(DEFAULT_SETTINGS.autoPlay, false)
 })
 
 // ── 13c. BỘ ĐẾM WIN: số TRẬN vô địch tích lũy cả phiên ────────────────────
@@ -1633,5 +1635,87 @@ test('LỜI CHÀO: tên rỗng bỏ qua, tên dài cắt 24 ký tự, bỏ emoji
 
 console.log('\n⚔️ NAM vs NỮ LIVE — test logic đẩy (vạch giữa chạm mép = thắng màn)')
 for (const line of results) console.log(line)
+// ── LỌC CHỮ DỄ BỊ TIKTOK PHẠT (2026-11-22, sau gậy 'chèo kéo quà') ──────
+const BANNED = [/nhân đôi/i, /giờ chót/i, /100 xu/i, /\bxu\b/i, /tặng đi/i, /ủng hộ/i, /giúp team/i, /lực kéo/i, /×2/, /tặng nhiều nhất/i, /BXH TẶNG QUÀ/i]
+function bannedIn(text) { return BANNED.filter((re) => re.test(text)).map(String) }
+test('LỌC CHỮ: câu giọng đọc quà/tim/10 giây cuối không giục quà, không giá xu, không "lực kéo"', () => {
+  const lines = [
+    voiceTextGift({ sender: 'Lan', giftName: 'Hoa hồng', effect: 1, teamName: 'Nữ' }),
+    voiceTextGift({ sender: 'Lan', giftName: 'Bó hoa', effect: 100, teamName: 'Nữ' }),
+    voiceTextGift({ sender: 'Lan', giftName: 'Bó hoa', effect: 100, teamName: 'Nữ', flip: true }),
+    voiceTextFinal(), voiceTextLikes(10),
+  ]
+  for (const l of lines) assert.deepEqual(bannedIn(l), [], `câu "${l}" còn chữ cấm`)
+  assert.ok(lines[0].startsWith('Cảm ơn'), 'câu quà là câu cảm ơn')
+  assert.equal(voiceTextFinal(), 'Mười giây cuối!')
+})
+test('LỌC CHỮ: bảng hướng dẫn + màn game (App.jsx) không còn giá xu / chữ mời quà', () => {
+  for (const r of GUIDE_ROWS) assert.deepEqual(bannedIn(`${r.left || ''} ${r.right || ''} ${r.label || ''}`), [])
+  // Chỉ quét chuỗi hiển thị (bỏ comment) của App.jsx.
+  const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  assert.deepEqual(bannedIn(app), [], 'App.jsx còn chữ cấm trên màn game')
+})
+test('LỌC CHỮ: game không còn đọc BXH người tặng theo hẹn giờ 60s', () => {
+  const hook = readFileSync(new URL('../src/game/useTugOfWar.js', import.meta.url), 'utf8')
+  assert.ok(!/voiceTextBxh\(/.test(hook), 'useTugOfWar không được gọi voiceTextBxh nữa')
+})
+
+// ── ĐỌC THỬ GIỌNG trên iPhone: speak() ĐỒNG BỘ trong cú bấm ─────────────
+function fakeSynth() {
+  const log = []
+  const synth = {
+    speaking: false, pending: false, spoken: [],
+    getVoices: () => [{ lang: 'vi-VN', name: 'Linh' }],
+    speak(u) { log.push('speak'); this.spoken.push(u) },
+    cancel() { log.push('cancel') },
+  }
+  class U { constructor(t) { this.text = t } }
+  return { synth, U, log }
+}
+test('ĐỌC THỬ GIỌNG: speakTestNow gọi synth.speak() ngay trong cùng call stack (trước mọi await)', () => {
+  const { synth, U, log } = fakeSynth()
+  const oldW = globalThis.window
+  globalThis.window = { speechSynthesis: synth, SpeechSynthesisUtterance: U }
+  try {
+    const v = new VoiceEngine({ enabled: false })
+    const statuses = []
+    log.push('click-start')
+    v.speakTestNow('Chào bạn', (k, d) => statuses.push(k))
+    log.push('click-end')
+    assert.deepEqual(log, ['click-start', 'speak', 'click-end'], 'speak phải nằm giữa click-start và click-end (đồng bộ)')
+    const u = synth.spoken[0]
+    assert.equal(u.lang, 'vi-VN', 'có giọng Việt sẵn thì gán tiếng Việt')
+    u.onstart(); u.onend()
+    assert.deepEqual(statuses, ['start', 'end'], 'báo đúng kết quả thật từ utterance')
+    v.speakTestNow('Lần 2', (k, d) => statuses.push(`${k}:${d}`))
+    synth.spoken[1].onerror({ error: 'not-allowed' })
+    assert.equal(statuses[2], 'error:not-allowed', 'lỗi hiện rõ tên lỗi')
+    assert.equal(v.speaking, false, 'lỗi xong không kẹt cờ đang đọc')
+  } finally { globalThis.window = oldW }
+})
+test('ĐỌC THỬ GIỌNG: chạm đầu tiên mở khóa giọng bằng 1 câu rất nhỏ (volume 0,01, không phải 0), chỉ 1 lần', () => {
+  const { synth, U } = fakeSynth()
+  const oldW = globalThis.window
+  globalThis.window = { speechSynthesis: synth, SpeechSynthesisUtterance: U }
+  try {
+    const v = new VoiceEngine({})
+    v.unlock(); v.unlock(); v.unlock()
+    assert.equal(synth.spoken.length, 1, 'chỉ mở khóa 1 lần')
+    assert.ok(synth.spoken[0].volume > 0 && synth.spoken[0].volume < 0.05)
+    synth.spoken[0].onend()
+    assert.equal(v.unlockUtter, null, 'câu mở khóa xong thì dọn')
+  } finally { globalThis.window = oldW }
+})
+test('ĐỌC THỬ GIỌNG: hàng đợi không kẹt mãi — cờ đang đọc quá 20s tự reset', () => {
+  const v = new VoiceEngine({ enabled: true })
+  v.speaking = true
+  v.speakingSince = Date.now() - 25000
+  v.queue.push({ text: 'x', priority: 1, deviceOnly: true })
+  v.playItem = async () => {}
+  v.pump()
+  assert.equal(v.queue.length, 0, 'kẹt quá 20s thì reset và đọc tiếp câu trong hàng đợi')
+})
+
 console.log(`\n${pass} đậu · ${fail} rớt · tổng ${pass + fail}`)
 if (fail > 0) process.exit(1)

@@ -173,9 +173,9 @@ function DisplayGame() {
             {GUIDE_ROWS.map((r, i) => r.wide ? (
               <span key={i} className={`nvb-guide-cell wide ${r.center ? 'center' : ''} ${r.side === 'A' ? 'pink' : r.side === 'B' ? 'blue' : 'both'}`}>
                 {r.gifts ? (
-                  <><span className="nvb-guide-ic" aria-hidden="true">💯</span><span className="nvb-guide-100"><b>{r.label}</b><span className="nvb-guide-icons">{r.gifts.map((g) => <GiftIcon key={g} gift={g} power={100} size={22} />)}</span></span></>
+                  <><span className="nvb-guide-ic" aria-hidden="true"><Sparkles size={14} /></span><span className="nvb-guide-100"><b>{r.label}</b><span className="nvb-guide-icons">{r.gifts.map((g) => <GiftIcon key={g} gift={g} power={100} size={22} />)}</span></span></>
                 ) : r.label ? (
-                  <><span className="nvb-guide-ic" aria-hidden="true">💯</span><span><b>{r.label}</b> {r.list}</span></>
+                  <><span className="nvb-guide-ic" aria-hidden="true"><Sparkles size={14} /></span><span><b>{r.label}</b> {r.list}</span></>
                 ) : (
                   <><span className="nvb-guide-ic" aria-hidden="true"><GuideIcon row={r} /></span><span>{r.left} <b>→ {r.right}</b></span></>
                 )}
@@ -207,7 +207,7 @@ function DisplayGame() {
             {toastFx ? (
               <div className="pml-toast" key={toastFx.id}>{toastFx.text}</div>
             ) : likeOnlyFx ? (
-              <div className="pml-timeflash"><Heart size={15} fill="currentColor" /> +10 lực kéo!</div>
+              <div className="pml-timeflash"><Heart size={15} fill="currentColor" /> 100 tim · Nữ +10!</div>
             ) : null}
           </div>
           <div className="nvb-fxslot gift">
@@ -223,7 +223,7 @@ function DisplayGame() {
                   <span className="nvb-spot-heart h6"><Heart size={14} fill="currentColor" /></span>
                 </div>
                 <div className="nvb-spot-name">{spotFx.sender}</div>
-                <div className="nvb-spot-sub">tặng {spotFx.gift || 'quà 100 xu'} · <Zap size={13} /> {Math.round(spotFx.power)} điểm</div>
+                <div className="nvb-spot-sub">tặng {spotFx.gift || 'quà lớn'} · <Zap size={13} /> {Math.round(spotFx.power)} điểm</div>
               </div>
             ) : giftFx && giftFx.big ? (
               <div className="pml-fireworks-name" key={giftFx.id}>
@@ -244,7 +244,7 @@ function DisplayGame() {
           </div>
           <div className="nvb-fxslot flip">
             {phase === 'pulling' && flipFx ? (
-              <div className="pml-flip">LẬT KÈO! {flipFx.sender || 'Ai đó'} 1 món quà cân cả phe kia!</div>
+              <div className="pml-flip">LẬT KÈO! {flipFx.sender || 'Ai đó'} đổi chiều trận đấu!</div>
             ) : null}
           </div>
         </div>
@@ -281,7 +281,7 @@ function DisplayGame() {
         {/* BXH nhỏ: ai tặng quà nhiều nhất */}
         {hasBxh && phase !== 'waiting' && (
           <div className="pml-bxh">
-            <div className="pml-bxh-title"><Trophy size={15} /> BXH TẶNG QUÀ</div>
+            <div className="pml-bxh-title"><Trophy size={15} /> BẢNG VÀNG · CẢM ƠN</div>
             {(bxh.gifters?.length || 0) > 0 && (
               <div className="pml-bxh-sec">
                 {bxh.gifters.map((g, i) => (
@@ -330,7 +330,9 @@ function DisplayGame() {
             <button className="pml-guide-x" onClick={() => setGuideOpen(false)} aria-label="Đóng hướng dẫn"><X size={18} /></button>
             <h3><BookOpen size={17} /> CÁCH CHƠI</h3>
             <button className="pml-guide-voice" onClick={game.testVoice}><Volume2 size={14} /> Đọc thử giọng</button>
-            <p><Gift size={14} /> Tặng quà — <b>chính món quà quyết định đẩy bên nào</b>: hoa hồng → đẩy <b>Nữ</b>; quà TikTok → đẩy <b>Nam</b>; nước hoa (20 xu) → đẩy <b>Nam</b>; bánh vòng (30 xu) → đẩy <b>Nữ</b>. Quà 100 xu cũng gán cố định: bó hoa, thả tim, tim, hộp quà, buổi sáng, cuối tuần, hạc giấy → <b>Nữ</b>; tay cầm, súng tiền, GG siêu khủng, mũ ria mép, thiên hà, ú òa, corgi → <b>Nam</b>. Điểm theo giá quà: 1 xu = 1 · 5 xu = 5 · 10 xu = 10 · 20 xu = 25 · 99 xu = <b>100 điểm!</b> Quà khác bảng thì tính cho phe đang thua.</p>
+            {game.voiceDiag ? <p className="pml-guide-diag"><b>{game.voiceDiag}</b></p> : null}
+            <p className="pml-guide-diag">Không nghe mà báo "Đã bắt đầu đọc" → kiểm tra nút gạt im lặng bên hông iPhone và âm lượng.</p>
+            <p><Gift size={14} /> Quà tặng — <b>mỗi món quà có phe riêng</b>: hoa hồng, bánh vòng → <b>Nữ</b> tấn công; quà TikTok, nước hoa → <b>Nam</b> tấn công. Quà lớn cũng có phe cố định (xem icon trên bảng): phe nhận quà lớn ép sân đối thủ 10 giây. Quà càng lớn đánh càng mạnh. Quà chưa có trong bảng thì tính cho phe đang thua.</p>
             <p><Zap size={14} /> Vạch giữa chạy theo chênh lệch điểm — phe nào mạnh hơn sẽ đẩy phe kia qua. Chạm mép bên kia là thắng màn ngay. Hết 60 giây thì phe điểm cao hơn thắng.</p>
             <p><Heart size={14} fill="currentColor" /> Thả tim — <b>mỗi người thả đủ 100 tim thì +10 cho Nữ</b> (tối đa +60/màn). Tim không đẩy cho Nam.</p>
             <p><Users size={14} /> Theo dõi — <b>1 lượt follow = +10 cho Nam</b> (tối đa +60/màn).</p>

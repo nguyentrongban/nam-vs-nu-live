@@ -27,15 +27,22 @@ const PRI = { low: 0, normal: 1, high: 2 }
 export function voiceTextGift({ sender, giftName, effect, teamName, flip }) {
   const name = sender || 'Khán giả'
   const gift = giftName || 'quà'
-  if (flip) return `Lật kèo! ${name} tặng ${gift}, cộng ${Math.round(effect)} lực kéo cho ${teamName}!`
-  if (effect >= 25) return `${name} tặng ${gift}, cộng ${Math.round(effect)} lực kéo cho ${teamName}!`
-  return `${name} tặng ${gift}!`
+  // Câu CẢM ƠN + tác dụng trong game (an toàn theo luật quà TikTok): không
+  // đọc giá xu, không đọc số lực, không giục tặng thêm (lọc 2026-11-22
+  // sau khi live bị phạt 'chèo kéo quà không tự nhiên').
+  if (flip) return `Lật kèo! Cảm ơn ${name} đã tặng ${gift}, ${teamName} tấn công!`
+  if (effect >= 25) return `Cảm ơn ${name} đã tặng ${gift}, ${teamName} tấn công!`
+  return `Cảm ơn ${name} đã tặng ${gift}!`
 }
 export function voiceTextRoundWin(teamName, round) { return `${teamName} thắng màn ${round}!` }
 export function voiceTextMatchWin(teamName) { return `${teamName} vô địch trận đấu!` }
 export function voiceTextRoundStart(round, labelA, labelB) { return `Màn ${round} bắt đầu! ${labelA} đấu với ${labelB}!` }
-export function voiceTextFinal() { return 'Giờ chót! Mười giây cuối, quà tặng nhân đôi!' }
-export function voiceTextLikes(power) { return `Đủ một trăm tim, cộng thêm ${power} lực kéo!` }
+// 10 giây cuối: chỉ báo giờ, KHÔNG nhắc quà (câu cũ 'quà tặng nhân đôi' = giục quà).
+export function voiceTextFinal() { return 'Mười giây cuối!' }
+export function voiceTextLikes(power) { return `Đủ một trăm tim, Nữ cộng ${power} điểm!` }
+// ĐÃ BỎ (2026-11-22): đọc BXH người tặng theo hẹn giờ 60s = xếp hạng người
+// tặng quà thành tiếng liên tục, dễ bị coi là chèo kéo quà. Hàm giữ lại cho
+// tương thích nhưng game KHÔNG gọi nữa.
 export function voiceTextBxh(province, gifter) {
   const parts = []
   if (province) parts.push(`${province.name} dẫn đầu với ${Math.round(province.power)} lực`)
@@ -121,12 +128,80 @@ export class VoiceEngine {
   setVoice(id) { if (VOICE_IDS.has(id)) this.voice = id }
 
   unlock() {
-    // Đánh thức giọng máy để lần đọc đầu không bị trễ (iPhone tải giọng chậm).
-    // Chỉ gọi getVoices() — KHÔNG đọc câu câm mở khóa nữa: câu câm đó có thể
-    // kẹt trong hàng đợi giọng máy rồi làm câu thật sau đó không đọc được.
+    // Lần chạm đầu: gọi speak() ĐỒNG BỘ ngay trong cử chỉ chạm (iPhone chỉ
+    // cho đọc nếu speak() đầu tiên nằm trong cử chỉ người dùng). Trước đây
+    // đã bỏ câu mở khóa vì sợ nó kẹt trong hàng đợi giọng máy làm câu thật
+    // sau không đọc được — nay xử lý kẹt: câu mở khóa rất ngắn (volume
+    // 0,01, không dùng 0 vì iPhone có thể bỏ qua), quá 2,5s chưa xong thì
+    // hủy; và speakDevice() luôn hủy câu kẹt trước khi đọc câu thật.
     try {
-      if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.getVoices()
+      const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+      if (!synth) return
+      synth.getVoices()
+      if (this.unlocked) return
+      this.unlocked = true
+      const Ctor = typeof window !== 'undefined' ? window.SpeechSynthesisUtterance : null
+      if (!Ctor) return
+      if (synth.speaking || synth.pending || this.speaking) return // đang đọc thật thì khỏi mở khóa
+      const u = new Ctor('.')
+      u.volume = 0.01
+      u.rate = 2
+      this.unlockUtter = u
+      const clear = () => { if (this.unlockUtter === u) this.unlockUtter = null }
+      u.onend = clear
+      u.onerror = clear
+      synth.speak(u)
+      setTimeout(() => {
+        if (this.unlockUtter === u) {
+          this.unlockUtter = null
+          // Câu mở khóa kẹt: chỉ hủy khi hàng đợi game không đang đọc câu thật.
+          if (!this.speaking) { try { synth.cancel() } catch { /* ignore */ } }
+        }
+      }, 2500)
     } catch { /* ignore */ }
+  }
+
+  // ── Nút "Đọc thử giọng": đọc ĐỒNG BỘ ngay trong onClick (không hàng đợi,
+  // không await, không setTimeout trước speak) để iPhone không chặn vì mất
+  // cử chỉ người dùng. onStatus(kind, detail) báo kết quả THẬT của câu đọc:
+  // 'start' | 'end' | 'error' | 'noresponse' | 'unsupported'.
+  speakTestNow(text, onStatus = () => {}) {
+    const report = (k, d) => { try { onStatus(k, d || '') } catch { /* ignore */ } }
+    const synth = typeof window !== 'undefined' ? window.speechSynthesis : null
+    const Ctor = typeof window !== 'undefined' ? window.SpeechSynthesisUtterance : null
+    if (!synth || !Ctor) { report('unsupported'); return false }
+    let started = false
+    let finished = false
+    const u = new Ctor(String(text || 'Đọc thử'))
+    u.rate = 1
+    u.volume = 1
+    try {
+      const voices = synth.getVoices ? synth.getVoices() : []
+      const vi = voices.find((v) => (v.lang || '').toLowerCase().startsWith('vi'))
+      if (vi) { u.lang = vi.lang || 'vi-VN'; u.voice = vi }
+    } catch { /* ignore */ }
+    u.onstart = () => { started = true; report('start') }
+    u.onend = () => { finished = true; this.speaking = false; report('end'); this.pump() }
+    u.onerror = (e) => { finished = true; this.speaking = false; report('error', (e && e.error) || 'không rõ'); this.pump() }
+    // Hàng đợi game nhường chỗ cho câu thử (bấm thử thì phải nghe ngay).
+    this.queue = []
+    this.unlockUtter = null
+    this.unlocked = true
+    if (synth.speaking || synth.pending) { try { synth.cancel() } catch { /* ignore */ } }
+    synth.speak(u) // ← cùng call stack với onClick
+    this.speaking = true
+    this.speakingSince = Date.now()
+    this.lastSpokenText = u.text
+    this.lastSpokenAt = Date.now()
+    setTimeout(() => {
+      if (!started && !finished && !synth.speaking) {
+        report('noresponse')
+        try { synth.cancel() } catch { /* ignore */ }
+        this.speaking = false
+        this.pump()
+      }
+    }, 3000)
+    return true
   }
 
   stop() {
@@ -172,6 +247,12 @@ export class VoiceEngine {
   }
 
   pump() {
+    // Chống kẹt: cờ 'đang đọc' quá 20 giây mà chưa xong (máy không báo
+    // onend) thì coi như kẹt → reset để hàng đợi không treo vĩnh viễn.
+    if (this.speaking && this.speakingSince && Date.now() - this.speakingSince > 20000) {
+      this.speaking = false
+      try { if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel() } catch { /* ignore */ }
+    }
     if (this.speaking || !this.queue.length) return
     // Lấy câu ưu tiên cao nhất (cùng ưu tiên thì đọc theo thứ tự vào trước).
     let idx = 0
@@ -180,6 +261,7 @@ export class VoiceEngine {
     }
     const item = this.queue.splice(idx, 1)[0]
     this.speaking = true
+    this.speakingSince = Date.now()
     this.lastSpokenText = item.text
     this.lastSpokenAt = Date.now()
     this.playItem(item).catch(() => {}).finally(() => {
@@ -324,14 +406,20 @@ export class VoiceEngine {
           clearTimeout(timeoutId)
           resolve(ok)
         }
+        let started = false
+        utter.onstart = () => { started = true }
         utter.onend = () => finish(true)
         utter.onerror = () => finish(false)
         synth.speak(utter)
-        // An toàn: quá 30 giây chưa xong thì dừng (tránh kẹt hàng đợi).
+        // Không bắt đầu đọc trong 3s (máy chặn / nuốt câu) → hủy, đọc câu sau.
+        setTimeout(() => {
+          if (!started && !done && !synth.speaking) { try { synth.cancel() } catch { /* ignore */ } finish(false) }
+        }, 3000)
+        // An toàn: câu ngắn quá ~8s (+ theo độ dài) chưa xong → hủy, tránh kẹt.
         timeoutId = setTimeout(() => {
           try { synth.cancel() } catch { /* ignore */ }
           finish(false)
-        }, 30000)
+        }, Math.min(30000, 8000 + String(text).length * 150))
       })
     } catch { return false }
   }

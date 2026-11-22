@@ -816,3 +816,6 @@ input, select { font-family: inherit; }
   0%, 100% { transform: translate(0, 0); }
   50% { transform: translate(2px, -1px); }
 }
+
+/* Kết quả nút Đọc thử giọng (chẩn đoán hiện rõ trên màn) */
+.pml-guide-diag { font-size: 12px; line-height: 1.35; margin: 4px 0 6px; opacity: 0.92; }

@@ -30,6 +30,6 @@ export const GUIDE_ROWS = [
   // Quà 100 lực đã gán phe cố định (2026-11-21): Nữ 7 món, Nam 7 món.
   // gifts = tên đầy đủ để tra icon thật trong giftImages.js; KHÔNG ghi
   // tên món bằng chữ lên bảng (tấn 19:42: dùng icon, ai kêu ghi chữ).
-  { wide: true, side: 'A', label: 'Quà 100 xu → Nữ:', gifts: ['bó hoa', 'thả tim', 'tim', 'hộp quà bóng bay', 'buổi sáng tốt lành', 'cuối tuần vui vẻ', 'hạc giấy'] },
-  { wide: true, side: 'B', label: 'Quà 100 xu → Nam:', gifts: ['tay cầm chơi game', 'súng bắn tiền', 'gg siêu khủng', 'mũ và ria mép', 'thiên hà', 'ú òa', 'chó corgi'] },
+  { wide: true, side: 'A', label: 'Quà lớn → Nữ:', gifts: ['bó hoa', 'thả tim', 'tim', 'hộp quà bóng bay', 'buổi sáng tốt lành', 'cuối tuần vui vẻ', 'hạc giấy'] },
+  { wide: true, side: 'B', label: 'Quà lớn → Nam:', gifts: ['tay cầm chơi game', 'súng bắn tiền', 'gg siêu khủng', 'mũ và ria mép', 'thiên hà', 'ú òa', 'chó corgi'] },
 ]

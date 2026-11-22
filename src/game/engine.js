@@ -278,7 +278,7 @@ export const DEFAULT_SETTINGS = {
   likePowerMax: 60,           // ... tối đa +60 lực kéo / màn (do tim)
   finalSeconds: 10,          // 10 giây cuối là "giờ chót"
   finalGiftMult: 2,          // ... quà tặng trong giờ chót nhân đôi lực kéo
-  autoPlay: true,            // TREO MÁY (mặc định BẬT): mở trang ~5s là tự bắt đầu trận, hết màn tự sang màn sau, hết trận tự đánh trận mới — không cần bấm. Tắt ở Admin → Cài đặt thì về chế độ bấm tay như cũ.
+  autoPlay: false,           // TREO MÁY (mặc định TẮT từ 2026-11-22 — TikTok phạt live không người dẫn; trước đó mặc định BẬT): mở trang ~5s là tự bắt đầu trận, hết màn tự sang màn sau, hết trận tự đánh trận mới — không cần bấm. Tắt ở Admin → Cài đặt thì về chế độ bấm tay như cũ.
   provinceLeaderMult: 1.5,    // tỉnh dẫn đầu BXH tỉnh thành: quà của tỉnh đó ×1,5 lực kéo
   giftMap: { ...DEFAULT_GIFT_MAP },
   streamerId: '',

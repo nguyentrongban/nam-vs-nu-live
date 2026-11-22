@@ -15,7 +15,7 @@ import { TikTokWS, WS_STATUS, readConnectParams } from './wsClient'
 import { SoundEngine } from './sound'
 import { PRESSURE_MS } from './poses'
 import { MusicEngine } from './music'
-import { VoiceEngine, WelcomeGate, voiceTextBxh, voiceTextFinal, voiceTextGift, voiceTextLikes, voiceTextMatchWin, voiceTextRoundStart, voiceTextRoundWin } from './voice'
+import { VoiceEngine, WelcomeGate, voiceTextFinal, voiceTextGift, voiceTextLikes, voiceTextMatchWin, voiceTextRoundStart, voiceTextRoundWin } from './voice'
 import { onSyncMessage, postHeartbeat, postHello, postState } from './sync'
 
 const SETTINGS_KEY = 'pml-settings-v1'
@@ -95,6 +95,10 @@ export function loadSettings() {
     // mặc định cũ (0,12 hoặc 0,15) thì đổi sang 0,08; ai chỉnh tay khác
     // thì giữ nguyên lựa chọn của họ.
     if (saved.ropeSpeed === 0.12 || saved.ropeSpeed === 0.15) saved.ropeSpeed = 0.08
+    // 2026-11-22 (TikTok phạt live treo máy): treo máy mặc định TẮT. Máy cũ
+    // còn lưu autoPlay=true từ mặc định cũ (chưa từng tự chỉnh ở Admin) thì
+    // tắt; ai đã tự bật lại ở Admin (autoPlayChosen) thì giữ lựa chọn.
+    if (saved.autoPlay !== false && !saved.autoPlayChosen) saved.autoPlay = false
     return {
       ...DEFAULT_SETTINGS,
       ...saved,
@@ -144,6 +148,7 @@ export function useTugOfWar() {
   const [wsStatus, setWsStatus] = useState(WS_STATUS.IDLE)
   const [wsDetail, setWsDetail] = useState('')
   const [wsLog, setWsLog] = useState([])
+  const [voiceDiag, setVoiceDiag] = useState('') // kết quả nút Đọc thử giọng (hiện trong Cách chơi)
   const [muted, setMuted] = useState(() => !loadSettings().soundOn)
   const prevCountRef = useRef(null)
   const prevPhaseRef = useRef(null)
@@ -564,7 +569,6 @@ export function useTugOfWar() {
     let lastBroadcast = 0
     let lastHeartbeat = 0
     let lastBxhSave = 0
-    let lastBxhVoice = 0
     const step = () => {
       const nowMs = performance.now()
       const dt = Math.min(5, Math.max(0, (nowMs - lastTick) / 1000))
@@ -647,12 +651,8 @@ export function useTugOfWar() {
       // Lưu BXH mỗi 5 giây — tải lại trang vẫn còn (mất tối đa 5 giây cuối).
       // BỘ ĐẾM WIN lưu cùng nhịp để tải lại trang không mất số trận thắng.
       if (nowMs - lastBxhSave > 5000) { lastBxhSave = nowMs; saveBxh(s); saveMatchWins(s) }
-      // Giọng đọc BXH mỗi 60 giây trong lúc kéo (chỉ khi có dữ liệu).
-      if (s.phase === 'pulling' && nowMs - lastBxhVoice > 60000) {
-        lastBxhVoice = nowMs
-        const bxhText = voiceTextBxh(provinceLeader(s), topGifters(s, 1)[0] || null)
-        if (bxhText) voiceRef.current.speak(bxhText, 'normal')
-      }
+      // ĐÃ BỎ (2026-11-22): đọc BXH người tặng mỗi 60 giây — xếp hạng người
+      // tặng quà thành tiếng theo hẹn giờ dễ bị TikTok coi là chèo kéo quà.
       if (nowMs - lastHeartbeat > 2000) {
         lastHeartbeat = nowMs
         postHeartbeat({ phase: s.phase, round: s.round, matchId: s.matchId })
@@ -726,8 +726,16 @@ export function useTugOfWar() {
   // ── Mở khóa âm thanh sau lần chạm đầu (trình duyệt chặn autoplay) ──
   useEffect(() => {
     const unlock = () => { soundRef.current.ensure(); voiceRef.current?.unlock(); musicRef.current?.unlock() }
+    // iPhone tính 'cử chỉ người dùng' cho giọng đọc chắc nhất ở touchend/click,
+    // nên nghe cả 3 (unlock giọng chỉ chạy 1 lần, an toàn khi gọi lặp).
     window.addEventListener('pointerdown', unlock)
-    return () => window.removeEventListener('pointerdown', unlock)
+    window.addEventListener('touchend', unlock)
+    window.addEventListener('click', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('touchend', unlock)
+      window.removeEventListener('click', unlock)
+    }
   }, [])
 
   useEffect(() => { takeSnap() }, [takeSnap])
@@ -845,18 +853,27 @@ export function useTugOfWar() {
   // chỉ nên iPhone chặn, nghe không thấy gì. Bấm xong hiện toast báo trạng
   // thái giọng máy (mấy giọng / có tiếng Việt không) để chẩn đoán.
   const testVoice = useCallback(() => {
-    const info = voiceRef.current?.getVoiceInfo?.() || null
-    voiceRef.current?.speakDeviceTest('Chào bạn đã vào live! Đây là giọng đọc thử.')
-    const s = stateRef.current
-    if (info) {
-      const msg = info.count === 0
-        ? '🔇 Máy chưa tải được giọng đọc nào — thử lại sau vài giây.'
-        : info.hasVi
-          ? `🔊 Đang đọc thử bằng giọng ${info.viName}…`
-          : `🔊 Đang đọc thử bằng giọng mặc định của máy (chưa có tiếng Việt).`
-      pushToast(s, msg)
-      takeSnap()
+    // speak() phải chạy ĐỒNG BỘ ngay trong onClick (iPhone chặn nếu gọi sau
+    // await/setTimeout) — speakTestNow gọi synth.speak() trước mọi thứ khác.
+    const v = voiceRef.current
+    const s0 = stateRef.current
+    const show = (text) => { const s = stateRef.current; pushToast(s, text); setVoiceDiag(text); takeSnap() }
+    const info0 = v?.getVoiceInfo?.() || { count: 0, hasVi: false, viName: '' }
+    const tail = () => {
+      const info = v?.getVoiceInfo?.() || info0
+      return ` · ${info.count} giọng · ${info.hasVi ? `có tiếng Việt (${info.viName})` : 'chưa có tiếng Việt'}`
     }
+    if (!v) return
+    v.speakTestNow('Chào bạn đã vào live! Đây là giọng đọc thử.', (kind, detail) => {
+      if (kind === 'start') show(`Đã bắt đầu đọc${tail()}`)
+      else if (kind === 'end') show(`Đọc xong${tail()}`)
+      else if (kind === 'error') show(`Lỗi: ${detail}${tail()}`)
+      else if (kind === 'noresponse') show(`Máy không phản hồi sau 3s${tail()}`)
+      else if (kind === 'unsupported') show('Lỗi: trình duyệt này không có giọng đọc')
+    })
+    pushToast(s0, `Đang gửi câu đọc thử…${tail()}`)
+    setVoiceDiag(`Đang gửi câu đọc thử…${tail()}`)
+    takeSnap()
   }, [takeSnap])
 
   // Nhạc nền: bật/tắt + qua bài + âm lượng (nút nhạc trên màn hiển thị).
@@ -875,7 +892,7 @@ export function useTugOfWar() {
 
   return {
     stateRef, snap, wsStatus, wsDetail, wsLog, muted,
-    start: doStart, toggleMute, testVoice, toggleMusic, nextTrack, setMusicVolume,
+    start: doStart, toggleMute, testVoice, voiceDiag, toggleMusic, nextTrack, setMusicVolume,
     apiConfigured: Boolean(import.meta.env?.VITE_API_URL),
   }
 }
