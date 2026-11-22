@@ -1,12 +1,141 @@
 // ─── KÉO CO LIVE · sound.js ────────────────────────────────────────────────
 // Âm thanh tổng hợp bằng WebAudio — không dùng file âm thanh nào.
 // Tiếng kéo, bụp, té bùn, kèn thắng... đều vẽ bằng sóng dao động.
+// Ngoại lệ: TIẾNG ĐÁNH (2026-11-22) dùng file MP3 thật (Pixabay Content
+// License — dùng thương mại được, không cần ghi nguồn) vì tiếng vung kiếm
+// + va chạm kim loại vẽ bằng sóng không giống. File trong public/sounds/,
+// load lười (lazy) sau lần chạm đầu, hỏng thì về lại tiếng tổng hợp.
+
+// ─── Tiếng đánh: file thật (Pixabay Content License) ───────────────────────
+// Nguồn từng file (trang Pixabay, dùng thương mại được, không cần ghi nguồn):
+// - sword_swing.mp3: "Real Swish 3" (304242) — tiếng vung kiếm/dao (whoosh)
+//   https://pixabay.com/sound-effects/real-swish-3-304242/
+// - sword_hit.mp3: "Sword Hit" (7160) — tiếng kiếm chạm đích (impact ngắn)
+//   https://pixabay.com/sound-effects/sword-hit-7160/
+// - punch_hit.mp3: "Punch" (140236) — tiếng đấm trúng, chỉ dùng cho quà to
+//   https://pixabay.com/sound-effects/punch-140236/
+// Cả 3 đều < 2s, tổng ~89 KB. File là nhị phân nên phải upload lên repo
+// bằng GitHub web (push-files từ chối file nhị phân), giống GLB + webp.
+export const ATTACK_SFX = {
+  swing: '/sounds/sword_swing.mp3',
+  hit: '/sounds/sword_hit.mp3',
+  punch: '/sounds/punch_hit.mp3',
+}
+// Va chạm vang lên giữa animation đấm (~1/3 nhịp 1s — tay chạm đích).
+export const ATTACK_SFX_HIT_DELAY_S = 0.3
+// Chống chồng tiếng khi quà tới dồn dập: 1 tiếng đánh mỗi 250ms là đủ,
+// quà tới nhanh hơn thì tiếng sau bị bỏ (animation vẫn đánh).
+export const ATTACK_SFX_MIN_INTERVAL_MS = 250
+
+// Thuần, test được bằng node: power → các lớp tiếng đánh.
+// - Quà nhỏ/tim/follow/cmt: vung (ngay lúc bắt đầu đánh) + va chạm (+0,3s).
+// - Quà to (>= 25 lực): thêm lớp đấm trúng cùng lúc va chạm cho nặng hơn.
+// - celebrate (quà 100 xu): nhân vật đang ĂN MỪNG (Cheer) chứ không đấm
+//   nên không vung kiếm — chỉ va chạm + đấm ngay lúc quà tới (quà đáp xuống).
+export function attackSfxFor(power = 0, { celebrate = false } = {}) {
+  const big = (power || 0) >= 25
+  const files = []
+  if (!celebrate) files.push({ key: 'swing', src: ATTACK_SFX.swing, delay: 0, vol: 0.9, fallback: 'pull' })
+  files.push({ key: 'hit', src: ATTACK_SFX.hit, delay: celebrate ? 0 : ATTACK_SFX_HIT_DELAY_S, vol: 1, fallback: 'noise' })
+  if (big) files.push({ key: 'punch', src: ATTACK_SFX.punch, delay: celebrate ? 0 : ATTACK_SFX_HIT_DELAY_S, vol: 0.9, fallback: null })
+  return { big, celebrate, files }
+}
 
 export class SoundEngine {
   constructor() {
     this.ctx = null
     this.enabled = true
     this.master = null
+    // File tiếng đánh: buffer đã giải mã (null = tải/giải mã lỗi).
+    this.buffers = {}
+    this._sfxState = {} // key -> 'ok' | 'failed'
+    this._sfxPromises = {}
+    this._lastAttackAt = 0
+    // Đếm chẩn đoán (xem qua window.__nvnSfx ở headless): played = số lần
+    // tiếng file thật đã phát, fallback = số lần về tiếng tổng hợp,
+    // skippedSuspended = số lần bỏ vì chưa chạm màn hình (autoplay).
+    this.sfx = { played: { swing: 0, hit: 0, punch: 0 }, fallback: 0, skippedSuspended: 0 }
+  }
+
+  // Tải + giải mã 1 file tiếng đánh (lười: chỉ tải khi sắp phát lần đầu,
+  // hoặc khi preloadAttackSfx() gọi sau lần chạm đầu). Lỗi (file chưa
+  // upload lên repo / mạng lỗi) thì trả null để về tiếng tổng hợp.
+  _loadBuffer(key, src) {
+    if (this._sfxPromises[key]) return this._sfxPromises[key]
+    const p = (async () => {
+      try {
+        // Dùng ctx đã có (ensure() gọi trước ở _playLayer / preload) —
+        // không gọi ensure() ở đây để tránh đệ quy (ensure gọi preload).
+        const ctx = this.ctx
+        if (!ctx) return null
+        const res = await fetch(src)
+        if (!res.ok) return null
+        const ab = await res.arrayBuffer()
+        const buf = await ctx.decodeAudioData(ab)
+        this.buffers[key] = buf
+        this._sfxState[key] = 'ok'
+        return buf
+      } catch { return null }
+    })()
+    p.then((buf) => { if (!buf) this._sfxState[key] = 'failed' })
+    this._sfxPromises[key] = p
+    return p
+  }
+
+  // Bắt đầu tải cả 3 file tiếng đánh (gọi sau lần chạm đầu để khỏi chặn
+  // lần phát đầu tiên — gọi lại bao nhiêu lần cũng chỉ tải 1 lần).
+  preloadAttackSfx() {
+    if (typeof window === 'undefined') return
+    for (const [key, src] of Object.entries(ATTACK_SFX)) this._loadBuffer(key, src)
+  }
+
+  // Phát 1 lớp tiếng file thật, hẹn giờ theo delay (giây). Chưa chạm màn
+  // hình (AudioContext còn suspended — trình duyệt chặn autoplay) thì BỎ
+  // tiếng này luôn thay vì dồn lại phát 1 lúc khi mở khóa. File lỗi thì
+  // về tiếng tổng hợp (fallback) để game không bao giờ câm.
+  _playLayer(key, src, delay = 0, vol = 1, fallback = null) {
+    const ctx = this.ensure()
+    if (!ctx) return
+    if (ctx.state !== 'running') { this.sfx.skippedSuspended++; return }
+    const playBuf = (buf) => {
+      if (!buf || !this.enabled) return
+      const t0 = ctx.currentTime + delay
+      const srcNode = ctx.createBufferSource()
+      srcNode.buffer = buf
+      const g = ctx.createGain()
+      g.gain.value = vol
+      srcNode.connect(g).connect(this.master)
+      srcNode.start(t0)
+      this.sfx.played[key] = (this.sfx.played[key] || 0) + 1
+    }
+    if (this._sfxState[key] === 'ok' && this.buffers[key]) { playBuf(this.buffers[key]); return }
+    if (this._sfxState[key] === 'failed') {
+      this.sfx.fallback++
+      if (fallback === 'pull') this.pull()
+      else if (fallback === 'noise') this.noise({ dur: 0.15, vol: 0.3, lowpass: 1500 })
+      return
+    }
+    this._loadBuffer(key, src).then((buf) => {
+      if (buf) playBuf(buf)
+      else {
+        this.sfx.fallback++
+        if (fallback === 'pull') this.pull()
+        else if (fallback === 'noise') this.noise({ dur: 0.15, vol: 0.3, lowpass: 1500 })
+      }
+    })
+  }
+
+  // Tiếng đánh cho 1 cú tấn công (khớp animation: vung lúc bắt đầu, va
+  // chạm giữa nhịp). nowMs truyền vào để test được; mặc định Date.now().
+  // Trả false khi bị chống chồng (quà tới < 250ms sau cú trước) hoặc khi
+  // đang tắt tiếng — animation vẫn đánh, chỉ không có tiếng.
+  playAttack(power = 0, opts = {}, nowMs = Date.now()) {
+    if (!this.enabled) return false
+    if (nowMs - this._lastAttackAt < ATTACK_SFX_MIN_INTERVAL_MS) return false
+    this._lastAttackAt = nowMs
+    const plan = attackSfxFor(power, opts)
+    for (const layer of plan.files) this._playLayer(layer.key, layer.src, layer.delay, layer.vol, layer.fallback)
+    return true
   }
 
   ensure() {
@@ -22,6 +151,9 @@ export class SoundEngine {
       } catch { return null }
     }
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {})
+    // Vừa mở khóa âm thanh: bắt đầu tải trước 3 file tiếng đánh để cú
+    // đánh đầu tiên không phải chờ tải (tải lười, lỗi thì về tổng hợp).
+    this.preloadAttackSfx()
     return this.ctx
   }
 
@@ -90,7 +222,8 @@ export class SoundEngine {
   }
 
   playForPull(effect) {
-    if (effect >= 25) this.bigPull()
-    else this.pull()
+    // Giữ tên cũ cho các chỗ gọi trước đây: giờ là tiếng đánh bằng file thật
+    // (vung + va chạm, quà to thêm lớp đấm); file lỗi thì về tiếng tổng hợp.
+    this.playAttack(effect)
   }
 }

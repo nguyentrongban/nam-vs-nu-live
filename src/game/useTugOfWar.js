@@ -13,6 +13,7 @@ import { regionInfo, detectRegion } from './regions'
 import { createSeqTracker, normalizeEvent, parseCommand } from './adapter'
 import { TikTokWS, WS_STATUS } from './wsClient'
 import { SoundEngine } from './sound'
+import { PRESSURE_MS } from './poses'
 import { MusicEngine } from './music'
 import { VoiceEngine, voiceTextBxh, voiceTextFinal, voiceTextGift, voiceTextLikes, voiceTextMatchWin, voiceTextRoundStart, voiceTextRoundWin } from './voice'
 import { onSyncMessage, postHeartbeat, postHello, postState } from './sync'
@@ -148,6 +149,14 @@ export function useTugOfWar() {
   const prevPhaseRef = useRef(null)
   const prevFinalTimeRef = useRef(false)
   const prevRoundWinnerRef = useRef(null)
+  // Tiếng đánh theo animation tấn công (2026-11-22): id effect ghi điểm
+  // mới nhất đã phát tiếng + spotlight 100 xu mới nhất (để biết phe nào
+  // đang ÉP — phe bị ép tặng quà nhỏ thì không có tiếng đánh).
+  const lastAttackSfxIdRef = useRef('')
+  const lastSpotSfxRef = useRef({ team: null, at: 0, lastId: '' })
+  // Chẩn đoán headless: window.__nvnSfx.sfx đếm số tiếng file thật đã
+  // phát (played) / về tổng hợp (fallback) / bỏ vì chưa chạm màn hình.
+  if (typeof window !== 'undefined') window.__nvnSfx = soundRef.current
   const reportedMatchRef = useRef('')
 
   const logWs = useCallback((line) => {
@@ -477,8 +486,9 @@ export function useTugOfWar() {
         takeSnap()
       } else if (msg.cmd === 'inject') {
         if (s.phase === 'pulling') {
-          const res = applyPull(s, msg.teamId, msg.power || 6, { nickname: msg.sender || 'Admin thử', userId: 'admin' }, '', { gift: false })
-          if (res.ok) sound.playForPull(res.effect)
+          // Tiếng đánh không phát ở đây — vòng lặp step thấy effect ghi
+          // điểm mới là tự phát (khớp animation tấn công).
+          applyPull(s, msg.teamId, msg.power || 6, { nickname: msg.sender || 'Admin thử', userId: 'admin' }, '', { gift: false })
         }
         takeSnap()
       } else if (msg.cmd === 'settings') {
@@ -556,7 +566,9 @@ export function useTugOfWar() {
         // Xử lý hàng đợi quà theo giới hạn toàn cục
         const done = engineRef.current.process(s.now)
         if (done?.ok) {
-          soundRef.current.playForPull(done.effect || 0)
+          // Tiếng đánh KHÔNG phát ở đây nữa — xem hook effect ghi điểm
+          // mới nhất bên dưới (để tim/follow/cmt cũng có tiếng khớp
+          // animation tấn công của chúng, không chỉ quà trong hàng đợi).
           // Giọng đọc quà: quà to đọc đủ câu, quà nhỏ đọc ngắn; lật kèo
           // thì đọc câu lật kèo. Quà thử (Admin/demo) không qua hàng đợi
           // nên không đọc — chỉ quà thật mới đọc.
@@ -567,6 +579,32 @@ export function useTugOfWar() {
             teamName: teamLabel(s, done.teamId),
             flip: !!done.flip,
           }), done.flip ? 'high' : (done.effect >= 25 ? 'normal' : 'low'))
+        }
+        // ── Tiếng đánh theo animation tấn công (2026-11-22) ──────────
+        // Effect ghi điểm MỚI NHẤT (pull = quà/cmt, like = đủ 100 tim,
+        // follow) = 1 cú đánh của phe đó — phát vung + va chạm khớp nhịp
+        // đấm (vung lúc bắt đầu, va chạm +0,3s; quà to thêm lớp đấm).
+        // Cùng 1 trigger với dáng tấn công ở App.jsx (attackFx) nên tiếng
+        // và hình luôn khớp, kể cả nhân vật 2D dự phòng. Phe bị ÉP SÂN
+        // tặng quà nhỏ/tim/follow/cmt thì KHÔNG có tiếng đánh (chỉ nhích
+        // vạch) — đúng luật ép; chỉ quà 100 xu của phe bị ép mới phá ép
+        // (lúc đó nó là phe ép mới nên có tiếng). Quà 100 xu thì nhân vật
+        // đang ĂN MỪNG chứ không đấm nên chỉ va chạm + đấm lúc quà tới,
+        // không vung kiếm.
+        {
+          const effs = s.effects || []
+          const spot = [...effs].reverse().find((e) => e.kind === 'gift' && e.spotlight)
+          const spotIsNew = !!spot && spot.id !== lastSpotSfxRef.current.lastId
+          if (spotIsNew) lastSpotSfxRef.current = { team: spot.team, at: Date.now(), lastId: spot.id }
+          const press = lastSpotSfxRef.current
+          const pressuringTeam = press.team && (Date.now() - press.at < PRESSURE_MS) ? press.team : null
+          const atkFx = [...effs].reverse().find((e) => e.kind === 'pull' || e.kind === 'like' || e.kind === 'follow')
+          if (atkFx && atkFx.id !== lastAttackSfxIdRef.current) {
+            lastAttackSfxIdRef.current = atkFx.id
+            if (!pressuringTeam || atkFx.team === pressuringTeam) {
+              soundRef.current.playAttack(atkFx.power || 0, { celebrate: spotIsNew && spot.team === atkFx.team })
+            }
+          }
         }
         // Âm thanh đếm ngược / bắt đầu kéo
         const c = Math.ceil(s.countdown)

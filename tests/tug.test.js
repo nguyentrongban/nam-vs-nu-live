@@ -7,6 +7,7 @@
 import assert from 'node:assert'
 import { existsSync } from 'node:fs'
 import { giftImageSrc, giftImageForPower } from '../src/game/giftImages.js'
+import { ATTACK_SFX, ATTACK_SFX_HIT_DELAY_S, attackSfxFor, SoundEngine } from '../src/game/sound.js'
 import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate, ATTACK_MS_SMALL, ATTACK_MS_BIG, attackDurationFor, isAttacking, resolveFighterPose, nextAttackState, nextPressureState, isPressuring, PRESSURE_MS, blockyLeanForSide } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
@@ -1540,6 +1541,31 @@ test('QUÀ NHỎ KHÔNG ĂN MỪNG: chỉ quà 100 xu mới có spotlight để 
   assert.equal(fx2.spotlight, true, 'quà 100 xu là spotlight → phe nhận ăn mừng')
   assert.equal(fx2.team, 'B', 'ăn mừng đúng phe nhận quà (Nam)')
   assert.equal(fx2.dur, 4.5, 'spotlight/ăn mừng kéo dài 4,5 giây')
+})
+test('TIẾNG ĐÁNH: quà nhỏ vung + va chạm, quà to thêm lớp đấm, quà 100 xu (ăn mừng) không vung kiếm', () => {
+  const small = attackSfxFor(1)
+  assert.deepEqual(small.files.map((f) => f.key), ['swing', 'hit'], 'quà nhỏ: vung + va chạm')
+  assert.equal(small.files[1].delay, ATTACK_SFX_HIT_DELAY_S, 'va chạm vang giữa nhịp đấm (+0,3s)')
+  assert.equal(small.big, false, 'quà nhỏ không phải quà to')
+  const big = attackSfxFor(25)
+  assert.deepEqual(big.files.map((f) => f.key), ['swing', 'hit', 'punch'], 'quà to: vung + va chạm + đấm')
+  assert.equal(big.big, true, 'quà >= 25 lực là quà to')
+  const cel = attackSfxFor(100, { celebrate: true })
+  assert.deepEqual(cel.files.map((f) => f.key), ['hit', 'punch'], 'ăn mừng: không vung kiếm, chỉ va chạm + đấm lúc quà tới')
+  assert.equal(cel.files[0].delay, 0, 'va chạm lúc ăn mừng vang ngay lúc quà tới')
+  for (const src of Object.values(ATTACK_SFX)) {
+    assert.ok(src.startsWith('/sounds/') && src.endsWith('.mp3'), `tiếng đánh là file mp3: ${src}`)
+    assert.ok(existsSync(new URL(`../public${src}`, import.meta.url)), `file tiếng đánh tồn tại: ${src}`)
+  }
+})
+
+test('TIẾNG ĐÁNH: chống chồng (quà tới < 250ms thì bỏ tiếng sau) + tôn trọng nút tắt tiếng', () => {
+  const snd = new SoundEngine()
+  assert.equal(snd.playAttack(1, {}, 1000), true, 'cú đánh đầu tiên có tiếng')
+  assert.equal(snd.playAttack(1, {}, 1100), false, 'quà tới 100ms sau thì bỏ tiếng (chống chồng)')
+  assert.equal(snd.playAttack(1, {}, 1300), true, 'quà tới sau 250ms thì có tiếng lại')
+  snd.enabled = false
+  assert.equal(snd.playAttack(1, {}, 2000), false, 'tắt tiếng thì không phát tiếng đánh')
 })
 
 
