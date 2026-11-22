@@ -14,7 +14,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { POSE_CLIPS, POSE_DEFEND, POSE_IDLE, POSE_PUSH, glbUrlsFor, KEEP_ACCESSORIES, poseForSide } from '../game/poses.js'
+import { POSE_CLIPS, POSE_DEFEND, POSE_IDLE, POSE_PUSH, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, isAttacking, isPressuring, resolveFighterPose, nextAttackState, nextPressureState, glbUrlsFor, KEEP_ACCESSORIES, poseForSide } from '../game/poses.js'
 import { CHAR_HEIGHT, VISIBLE_HALF_H, fighterWorldPositions } from '../game/stage3d.js'
 
 // Phụ kiện gắn sẵn trong GLB KayKit (tên node). Chỉ giữ lại những cái trong
@@ -34,11 +34,24 @@ function pickClip(gltf, pose) {
     || gltf.animations[0]
 }
 
-export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, joltId = '', onStatus = () => {} }) {
+export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, joltId = '', celebrateTeam = null, celebrateId = '', attackTeam = null, attackId = '', attackMs = 1000, pressureTeam = null, pressureId = '', onStatus = () => {} }) {
   const wrapRef = useRef(null)
   const canvasRef = useRef(null)
-  const propsRef = useRef({ rope, divider, jolt })
-  propsRef.current = { rope, divider, jolt }
+  const propsRef = useRef({ rope, divider, jolt, celebrateTeam, celebrateId, attackTeam, attackId, attackMs, pressureTeam, pressureId })
+  propsRef.current = { rope, divider, jolt, celebrateTeam, celebrateId, attackTeam, attackId, attackMs, pressureTeam, pressureId }
+  // Ăn mừng quà 100 xu: { team, until (Date.now), lastId }. Quà 100 xu mới
+  // tới (id khác) thì gia hạn thêm 4,5s; hết giờ thì tự về dáng theo thế trận.
+  // celebrateId 'perm' = ăn mừng liên tục (chỉ dùng cho chụp ảnh ?celebrate=).
+  const celebrateRef = useRef({ team: null, until: 0, lastId: '' })
+  // Tấn công theo từng món quà: { team, until, lastId } — giống ăn mừng
+  // nhưng ngắn (1s quà nhỏ, 1,5s quà to). id 'perm' = đánh liên tục (chỉ
+  // dùng cho chụp ảnh ?attack=). Effect cũ không bật lại khi effect mới
+  // hơn hết hạn trước (nextAttackState so sánh id đơn điệu).
+  const attackRef = useRef({ team: null, until: 0, lastId: '' })
+  // Ép sân (quà 100 xu): { team, until, lastId } — phe nhận quà 100 xu ép
+  // phe kia 10s kể từ món 100 xu mới nhất. id 'perm' = ép liên tục (chỉ
+  // dùng cho chụp ảnh ?pressure=).
+  const pressureRef = useRef({ team: null, until: 0, lastId: '' })
   const statusRef = useRef('loading')
 
   const setStatus = (s) => {
@@ -150,11 +163,17 @@ export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, jol
       scene.add(group)
       const mixer = new THREE.AnimationMixer(obj)
       const actions = {}
-      for (const pose of [POSE_IDLE, POSE_PUSH, POSE_DEFEND]) {
+      for (const pose of [POSE_IDLE, POSE_PUSH, POSE_DEFEND, POSE_CELEBRATE]) {
         const clip = pickClip(gltf, pose)
         if (clip) actions[pose] = mixer.clipAction(clip)
       }
-      const f = { side, group, inner, mixer, actions, pose: null, lean: 0 }
+      // Đèn vàng phát sáng khi ăn mừng: gắn vào nhóm nhân vật, ngay trước
+      // mặt (local +Z sau khi xoay sẽ hướng về phía đối thủ) để ánh sáng
+      // rọi thẳng vào người đang nhảy. Bình thường cường độ 0.
+      const glow = new THREE.PointLight(0xffc94d, 0, 7, 1.5)
+      glow.position.set(0, 1.7, 1.6)
+      group.add(glow)
+      const f = { side, group, inner, mixer, actions, pose: null, lean: 0, lunge: 0, glow }
       fighters.push(f)
       return f
     }
@@ -195,7 +214,27 @@ export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, jol
     const tick = () => {
       raf = requestAnimationFrame(tick)
       const dt = Math.min(clock.getDelta(), 0.05)
-      const { rope: r, divider: d } = propsRef.current
+      const { rope: r, divider: d, celebrateTeam: cTeam, celebrateId: cId, attackTeam: aTeam, attackId: aId, attackMs: aMs, pressureTeam: pTeam, pressureId: pId } = propsRef.current
+      // Quà 100 xu mới (id khác id lần trước) → phe nhận quà ăn mừng 4,5s.
+      // id 'perm' (chụp ảnh ?celebrate=) thì ăn mừng liên tục không hết giờ.
+      if (cId && cId !== celebrateRef.current.lastId) {
+        celebrateRef.current = {
+          team: cTeam,
+          until: cId === 'perm' ? Infinity : Date.now() + CELEBRATE_MS,
+          lastId: cId,
+        }
+      }
+      // Cú ghi điểm mới (quà/tim/follow/cmt, id khác id lần trước) → phe
+      // đó tấn công 1–1,5s, phe kia phòng thủ. id 'perm' (?attack=) thì
+      // đánh liên tục. Effect cũ không bật lại (xem nextAttackState).
+      // Phe đang BỊ ÉP tặng quà nhỏ/tim/follow/cmt thì KHÔNG được tấn
+      // công, KHÔNG phá thế ép — chỉ ghi nhận id để hết ép cũng không
+      // đánh bù (xem nextAttackState, pressuringTeam).
+      const nowMs = Date.now()
+      pressureRef.current = nextPressureState(pressureRef.current, pId ? { team: pTeam, id: pId } : null, nowMs)
+      const pressuringTeam = isPressuring(pressureRef.current, pressureRef.current.team, nowMs) ? pressureRef.current.team : null
+      attackRef.current = nextAttackState(attackRef.current, aId ? { team: aTeam, id: aId, ms: aMs } : null, nowMs, pressuringTeam)
+      const poseDebug = {}
       // Vị trí: 2 nhân vật luôn cách nhau 2×CHAR_OFFSET quanh vạch giữa
       // (xem src/game/stage3d.js — BattleScene dùng chung công thức này để
       // đặt nhãn GIRL/BOY nên nhãn không bao giờ lệch khỏi nhân vật).
@@ -205,18 +244,42 @@ export default function ThreeFighters({ rope = 0, divider = 50, jolt = null, jol
         window.__fighterPos = { girlX, boyX, halfW, divX, divider: d }
       }
       for (const f of fighters) {
-        const pose = poseForSide(r, f.side)
+        // Ưu tiên dáng: ĂN MỪNG (100 xu) > ÉP SÂN > TẤN CÔNG theo quà >
+        // thế trận. Phe vừa được tặng thì ĐẨY, phe còn lại PHÒNG THỦ — dù
+        // thế trận đang nghiêng về bên nào, nên không còn chuyện 1 phe thủ mãi.
+        const celebrating = isCelebrating(celebrateRef.current, f.side, nowMs)
+        const attacking = isAttacking(attackRef.current, f.side, nowMs) || isPressuring(pressureRef.current, f.side, nowMs)
+        const pose = resolveFighterPose(r, f.side, celebrateRef.current, attackRef.current, pressureRef.current, nowMs)
+        poseDebug[f.side] = pose
         playPose(f, pose)
         f.mixer.update(dt)
         const targetX = f.side === 'A' ? girlX : boyX
-        f.group.position.x += (targetX - f.group.position.x) * Math.min(1, dt * 8)
-        // Nghiêng: phe đẩy nghiêng về trước, phe thủ ngả về sau.
+        // Tấn công thì nhào người về phía đối thủ (A: +X, B: -X) cho cú
+        // đấm đọc rõ là đang xô tới, không chỉ đứng yên vung tay.
+        const lungeDir = f.side === 'A' ? 1 : -1
+        const targetLunge = attacking ? 0.16 : 0
+        f.lunge += (targetLunge - f.lunge) * Math.min(1, dt * 8)
+        f.group.position.x += ((targetX + lungeDir * f.lunge) - f.group.position.x) * Math.min(1, dt * 8)
+        // Nghiêng: phe đẩy nghiêng về trước (tấn công theo quà thì nghiêng
+        // mạnh hơn 1 chút), phe thủ ngả về sau, ăn mừng thì đứng thẳng
+        // (clip Cheer tự nhảy lên).
         // Girl quay mặt +X: nghiêng trước = rotation.z âm; Boy quay mặt -X: ngược lại.
         const dir = f.side === 'A' ? -1 : 1
-        const targetLean = pose === POSE_PUSH ? 0.14 : pose === POSE_DEFEND ? -0.16 : 0
+        const targetLean = celebrating ? 0 : pose === POSE_PUSH ? (attacking ? 0.18 : 0.14) : pose === POSE_DEFEND ? -0.16 : 0
         f.lean += (targetLean - f.lean) * Math.min(1, dt * 6)
         f.inner.rotation.z = dir * f.lean
+        // Nhảy ăn mừng: clip Cheer của Knight cầm khiên+kiếm nhìn từ bên
+        // hông rất giống thế phòng thủ (khiên giơ trước mặt) — nhún lên
+        // xuống cho rõ là đang nhảy ăn mừng, không phải đang thủ.
+        const targetBounce = celebrating ? Math.abs(Math.sin(nowMs / 220)) * 0.14 : 0
+        f.inner.position.y += (targetBounce - f.inner.position.y) * Math.min(1, dt * 10)
+        // Phát sáng vàng khi ăn mừng, mờ dần trong 1 giây cuối rồi tắt.
+        const remaining = celebrateRef.current.until - nowMs
+        const fade = celebrating ? Math.min(1, remaining / 1000) : 0
+        const targetGlow = celebrating ? 2.2 * fade : 0
+        f.glow.intensity += (targetGlow - f.glow.intensity) * Math.min(1, dt * 8)
       }
+      if (typeof window !== 'undefined') window.__fighterPose = poseDebug
       renderer.render(scene, camera)
     }
     tick()

@@ -675,7 +675,7 @@ export function applyPull(state, teamId, power, sender = {}, giftName = '', opts
   pushFeed(state, 'pull',
     `${TEAMS[teamId].emoji} ${pvTag}${senderName} kéo ${big ? 'CỰC MẠNH' : 'một phát'} cho ${TEAMS[teamId].name}!${losing ? ' (cơ hội cuối ×2)' : ''}${final ? ' (giờ chót ×2)' : ''}${provinceBonus ? ' (tỉnh dẫn đầu ×1,5)' : ''}${flip ? ' 🌊 LẬT KÈO!' : ''}`)
   pushFloater(state, teamId, big ? '💪 KÉO CỰC MẠNH!' : '💪 +KÉO!')
-  state.effects.push({ id: nextId('fx'), kind: 'pull', team: teamId, t: 0, dur: 0.6 })
+  state.effects.push({ id: nextId('fx'), kind: 'pull', team: teamId, power: effect, t: 0, dur: 0.6 })
   if (flip) state.effects.push({ id: nextId('fx'), kind: 'flip', team: teamId, sender: senderName, t: 0, dur: 2.5 })
   // Hiệu ứng tặng quà (đỉnh của chóp): quà nhỏ = hộp quà mở ra + hiện tên;
   // quà to (≥25 lực) = nổ pháo hoa + tên người tặng hiện nổi bật; quà
@@ -755,6 +755,9 @@ export function applyCheer(state, teamId, sender = {}) {
   state.roundScore[teamId] = (state.roundScore[teamId] || 0) + 1 // điểm màn: chỉ cộng lên
   team.lastPullAt = state.now
   state.stats.pulls++
+  // Cmt +1 cũng tính là 1 cú tấn công (xem poses.js): đẩy 1 effect 'pull'
+  // như quà/tim/follow để nhân vật phe đó đánh 1 phát, phe kia thủ.
+  state.effects.push({ id: nextId('fx'), kind: 'pull', team: teamId, power: 1, t: 0, dur: 0.6 })
   return { ok: true, teamId, effect: 1 }
 }
 

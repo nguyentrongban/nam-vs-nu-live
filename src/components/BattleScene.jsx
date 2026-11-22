@@ -7,9 +7,10 @@
 // về lại 2 nhân vật blocky 2D tự vẽ (dự phòng, không bao giờ màn trắng).
 // Vạch giữa (ranh giới hồng/xanh) chạy theo rope (-1..+1): phe nào mạnh hơn
 // thì đẩy vạch sang phía phe kia; chạm mép (±0,9) là thắng màn.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ThreeFighters from './ThreeFighters'
 import { fighterFractions } from '../game/stage3d.js'
+import { blockyLeanForSide, nextAttackState, nextPressureState, isAttacking, isPressuring } from '../game/poses.js'
 
 function Flame({ className, style }) {
   return (
@@ -54,7 +55,7 @@ function Blocky({ side, lean }) {
   )
 }
 
-export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA = 0, countB = 0, winsA = 0, winsB = 0, matchWinsA = 0, matchWinsB = 0, round = 1, timeLeft = 60, phase = 'waiting', jolt = null, joltTeam = null, joltId = '', celebrateTeam = null, celebrateId = '' }) {
+export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA = 0, countB = 0, winsA = 0, winsB = 0, matchWinsA = 0, matchWinsB = 0, round = 1, timeLeft = 60, phase = 'waiting', jolt = null, joltTeam = null, joltId = '', celebrateTeam = null, celebrateId = '', attackTeam = null, attackId = '', attackMs = 1000, pressureTeam = null, pressureId = '' }) {
   // Vạch giữa: 50% khi hòa, chạy tới 90,5% khi Nữ thắng hẳn, 9,5% khi Nam thắng hẳn.
   // Tỉ lệ đẩy (ngưỡng thắng chênh 100 điểm): cmt +1 → vạch nhích 0,45% (tí xíu),
   // 100 tim/follow +10 → nhích 4,5%, quà to 100 → vọt 45% tới sát mép.
@@ -75,11 +76,24 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
   // Nhãn rộng ~54px → tâm nhãn = vị trí nhân vật, kẹp 6px mỗi mép.
   const plateStyle = (f) => ({ left: `clamp(6px, calc(${f * 100}% - 61px), calc(100% - 128px))` })
   const plateLabelStyle = (f) => ({ left: `clamp(6px, calc(${f * 100}% - 27px), calc(100% - 60px))` })
-  // Nghiêng người (chỉ dùng cho nhân vật blocky dự phòng): thua thì ngả về
-  // sau. Quà TO (jolt big) thì phe bị đẩy ngửa thêm 14° + rung màn hình
-  // mạnh; quà nhỏ rung nhẹ; cmt/tim chỉ nhích vạch (không rung).
-  const girlLean = (rope > 0 ? -7 : 11) + (jolt === 'big' && joltTeam === 'B' ? 14 : 0)
-  const boyLean = (rope < 0 ? 7 : -11) - (jolt === 'big' && joltTeam === 'A' ? 14 : 0)
+  // Nghiêng người (chỉ dùng cho nhân vật blocky dự phòng): phe vừa được
+  // tặng thì chúi mạnh về trước (tấn công), phe kia ngả mạnh về sau
+  // (phòng thủ); không có quà mới thì theo thế trận như cũ. Quà TO (jolt
+  // big) thì phe bị đẩy ngửa thêm 14° + rung màn hình mạnh; quà nhỏ rung
+  // nhẹ; cmt/tim chỉ nhích vạch (không rung). Hết ~1–1,5s không có quà
+  // mới thì về dáng theo thế trận (snap về mỗi ~200ms nên hết giờ là thấy).
+  const attackRef = useRef({ team: null, until: 0, lastId: '' })
+  const pressureRef = useRef({ team: null, until: 0, lastId: '' })
+  pressureRef.current = nextPressureState(pressureRef.current, pressureId ? { team: pressureTeam, id: pressureId } : null, Date.now())
+  const pressuringTeam = isPressuring(pressureRef.current, pressureRef.current.team, Date.now()) ? pressureRef.current.team : null
+  attackRef.current = nextAttackState(attackRef.current, attackId ? { team: attackTeam, id: attackId, ms: attackMs } : null, Date.now(), pressuringTeam)
+  const attackingTeam = pressuringTeam || (isAttacking(attackRef.current, attackRef.current.team, Date.now()) ? attackRef.current.team : null)
+  const girlLean = blockyLeanForSide('A', rope, attackingTeam) + (jolt === 'big' && joltTeam === 'B' ? 14 : 0)
+  const boyLean = blockyLeanForSide('B', rope, attackingTeam) - (jolt === 'big' && joltTeam === 'A' ? 14 : 0)
+  const girlAttacking = attackingTeam === 'A' && celebrateTeam !== 'A'
+  const boyAttacking = attackingTeam === 'B' && celebrateTeam !== 'B'
+  const girlDefending = attackingTeam === 'B' && celebrateTeam !== 'A'
+  const boyDefending = attackingTeam === 'A' && celebrateTeam !== 'B'
   const leading = rope > 0.05 ? 'A' : rope < -0.05 ? 'B' : null
   return (
     <div className="nvb-stage" aria-label="Nam vs Nữ">
@@ -117,14 +131,15 @@ export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA =
            Tên GIRL/BOY giữ dạng HTML để luôn đọc được, kể cả khi 3D lỗi.
            Nhãn kẹp trong màn hình (max/min) để vạch chạy tới mép thì tên
            không bị cắt nửa như trước. */}
-      <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} celebrateTeam={celebrateTeam} celebrateId={celebrateId} onStatus={(s) => setThreeOk(s === 'ready')} />
+      <ThreeFighters rope={rope} divider={divider} jolt={jolt} joltId={joltId} celebrateTeam={celebrateTeam} celebrateId={celebrateId} attackTeam={attackTeam} attackId={attackId} attackMs={attackMs} pressureTeam={pressureTeam} pressureId={pressureId} onStatus={(s) => setThreeOk(s === 'ready')} />
       {/* Khung nhân vật dự phòng 2D (chỉ hiện khi 3D lỗi) — giữ đáy cũ để
            nhân vật dự phòng không bị trôi lên. Phe nhận quà 100 xu cũng
-           nhảy ăn mừng (CSS) cho giống bản 3D. */}
-      <div className={`nvb-char-wrap girl${celebrateTeam === 'A' ? ' nvb-celebrating' : ''}`} style={plateStyle(fracs.girl)}>
+           nhảy ăn mừng (CSS) cho giống bản 3D; phe vừa được tặng thì lao
+           về trước (tấn công), phe kia ngả về sau (phòng thủ). */}
+      <div className={`nvb-char-wrap girl${celebrateTeam === 'A' ? ' nvb-celebrating' : ''}${girlAttacking ? ' nvb-attacking' : ''}${girlDefending ? ' nvb-defending' : ''}`} style={plateStyle(fracs.girl)}>
         {!threeOk && <Blocky side="girl" lean={girlLean} />}
       </div>
-      <div className={`nvb-char-wrap boy${celebrateTeam === 'B' ? ' nvb-celebrating' : ''}`} style={plateStyle(fracs.boy)}>
+      <div className={`nvb-char-wrap boy${celebrateTeam === 'B' ? ' nvb-celebrating' : ''}${boyAttacking ? ' nvb-attacking' : ''}${boyDefending ? ' nvb-defending' : ''}`} style={plateStyle(fracs.boy)}>
         {!threeOk && <Blocky side="boy" lean={boyLean} />}
       </div>
       {/* Nhãn GIRL/BOY đứng RIÊNG (không nằm trong khung nhân vật nữa):

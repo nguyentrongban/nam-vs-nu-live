@@ -100,10 +100,23 @@ function DisplayGame() {
   const jolt = giftFx ? (giftFx.big ? 'big' : 'small') : (likeFx ? 'tiny' : null)
   const joltTeam = (giftFx || likeFx)?.team || null
   const joltId = (giftFx || likeFx)?.id || ''
-  // Ăn mừng quà 100 xu: phe nhận spotlight (team + id của hiệu ứng) nhảy
-  // clip Cheer + phát sáng vàng 4,5s, khớp thời gian spotlight. Phe còn
-  // lại giữ dáng cũ. ?celebrate=a|b — khóa ăn mừng liên tục để chụp ảnh
-  // kiểm tra (không ảnh hưởng luật chơi, không có param thì theo spotlight).
+  // Tấn công theo từng món quà (2026-11-22): effect ghi điểm MỚI NHẤT
+  // (pull = quà/cmt, like = đủ 100 tim, follow) làm phe đó ĐÁNH 1 phát,
+  // phe kia THỦ — không đợi thế trận đổi. Quà to (>= 25 lực) đánh 1,5s,
+  // quà nhỏ/tim/follow/cmt đánh 1s. ?attack=a|b — khóa tấn công liên tục
+  // để chụp ảnh kiểm tra (như ?celebrate=).
+  const attackFx = (s?.effects || []).filter((e) => e.kind === 'pull' || e.kind === 'like' || e.kind === 'follow').pop()
+  const attackParam = new URLSearchParams(window.location.search).get('attack')
+  const attackTeam = attackParam === 'a' ? 'A' : attackParam === 'b' ? 'B' : (attackFx?.team || null)
+  const attackId = attackParam ? 'perm' : (attackFx?.id || '')
+  const attackMs = (attackFx?.power || 0) >= 25 ? 1500 : 1000
+  // Ép sân (2026-11-22): phe nào nhận quà 100 xu (spotlight) thì ÉP phe
+  // kia 10s kể từ món 100 xu mới nhất — phe ép đánh liên tục, phe bị ép
+  // chỉ thủ (quà nhỏ của phe bị ép vẫn cộng điểm nhưng không được đánh).
+  // ?pressure=a|b — khóa ép liên tục để chụp ảnh kiểm tra (như ?celebrate=).
+  const pressureParam = new URLSearchParams(window.location.search).get('pressure')
+  const pressureTeam = pressureParam === 'a' ? 'A' : pressureParam === 'b' ? 'B' : (spotFx?.team || null)
+  const pressureId = pressureParam ? 'perm' : (spotFx?.id || '')
   const celebrateParam = new URLSearchParams(window.location.search).get('celebrate')
   const celebrateTeam = celebrateParam === 'a' ? 'A' : celebrateParam === 'b' ? 'B' : (spotFx?.team || null)
   const celebrateId = celebrateParam ? 'perm' : (spotFx?.id || '')
@@ -142,6 +155,8 @@ function DisplayGame() {
           round={s?.round || 1} timeLeft={s?.roundTimeLeft || 0} phase={phase}
           jolt={jolt} joltTeam={joltTeam} joltId={joltId}
           celebrateTeam={celebrateTeam} celebrateId={celebrateId}
+          attackTeam={attackTeam} attackId={attackId} attackMs={attackMs}
+          pressureTeam={pressureTeam} pressureId={pressureId}
         />
 
         {/* Góc trên phải để trống cho gọn (2026-11-21 19:25): nút loa +

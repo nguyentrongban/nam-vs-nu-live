@@ -7,7 +7,7 @@
 import assert from 'node:assert'
 import { existsSync } from 'node:fs'
 import { giftImageSrc, giftImageForPower } from '../src/game/giftImages.js'
-import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate } from '../src/game/poses.js'
+import { poseForSide, posesForRope, glbUrlsFor, KEEP_ACCESSORIES, POSE_CLIPS, POSE_CELEBRATE, CELEBRATE_MS, isCelebrating, poseForSideWithCelebrate, ATTACK_MS_SMALL, ATTACK_MS_BIG, attackDurationFor, isAttacking, resolveFighterPose, nextAttackState, nextPressureState, isPressuring, PRESSURE_MS, blockyLeanForSide } from '../src/game/poses.js'
 import { CHAR_OFFSET, VISIBLE_HALF_H, fighterFractions, fighterWorldPositions } from '../src/game/stage3d.js'
 import { GUIDE_ROWS } from '../src/game/guide.js'
 import { createSeqTracker, normalizeEvent, parseCommand } from '../src/game/adapter.js'
@@ -1362,6 +1362,153 @@ test('ĂN MỪNG QUÀ 100 XU: chỉ phe nhận quà nhảy Cheer 4,5s, phe kia g
   assert.equal(poseForSideWithCelebrate(0.6, 'A', cel, now + CELEBRATE_MS), 'push', 'hết ăn mừng thì về dáng đẩy theo thế trận')
   assert.equal(isCelebrating(null, 'A', now), false, 'không có quà 100 xu thì không ăn mừng')
   assert.equal(isCelebrating({ team: 'B', until: Infinity }, 'B', now), true, 'until vô cực (chụp ảnh) thì ăn mừng liên tục')
+})
+
+test('TẤN CÔNG THEO QUÀ: quà cho Nữ → Nữ ĐẨY + Nam THỦ, dù thế trận đang nghiêng về Nam', () => {
+  const now = 200000
+  const atk = { team: 'A', until: now + ATTACK_MS_SMALL }
+  assert.equal(isAttacking(atk, 'A', now), true, 'phe A vừa được tặng thì tấn công')
+  assert.equal(isAttacking(atk, 'B', now), false, 'phe B không tấn công cùng lúc')
+  // Thế trận đang nghiêng hẳn về Nam (rope -0,6) nhưng quà Nữ tới thì Nữ vẫn đánh.
+  assert.equal(resolveFighterPose(-0.6, 'A', null, atk, null, now), 'push', 'quà Nữ tới: Nữ đánh dù đang thua thế trận')
+  assert.equal(resolveFighterPose(-0.6, 'B', null, atk, null, now), 'defend', 'quà Nữ tới: Nam thủ')
+  assert.equal(resolveFighterPose(-0.6, 'A', null, atk, null, now + ATTACK_MS_SMALL), 'defend', 'hết ~1s không quà mới thì về dáng theo thế trận')
+  assert.equal(resolveFighterPose(-0.6, 'B', null, atk, null, now + ATTACK_MS_SMALL), 'push', 'hết tấn công thì Nam lại đẩy theo thế trận')
+})
+
+test('TẤN CÔNG THEO QUÀ: quà Nam tới ngay sau quà Nữ thì ĐỔI CHIỀU ngay, không ai thủ mãi', () => {
+  const now = 300000
+  const atkA = { team: 'A', until: now + ATTACK_MS_SMALL }
+  assert.equal(resolveFighterPose(0, 'A', null, atkA, null, now), 'push', 'quà Nữ: Nữ đánh')
+  assert.equal(resolveFighterPose(0, 'B', null, atkA, null, now), 'defend', 'quà Nữ: Nam thủ')
+  const atkB = { team: 'B', until: now + 500 + ATTACK_MS_SMALL }
+  assert.equal(resolveFighterPose(0, 'A', null, atkB, null, now + 500), 'defend', 'quà Nam tới sau: Nữ chuyển sang thủ ngay')
+  assert.equal(resolveFighterPose(0, 'B', null, atkB, null, now + 500), 'push', 'quà Nam tới sau: Nam đánh ngay')
+})
+
+test('TẤN CÔNG THEO QUÀ: quà to (>= 25 lực) đánh 1,5s, quà nhỏ/tim/follow/cmt đánh 1s', () => {
+  assert.equal(ATTACK_MS_SMALL, 1000, 'quà nhỏ đánh 1 giây')
+  assert.equal(ATTACK_MS_BIG, 1500, 'quà to đánh 1,5 giây')
+  assert.equal(attackDurationFor(1), 1000, 'hoa hồng 1 xu đánh 1s')
+  assert.equal(attackDurationFor(10), 1000, 'tim/follow +10 đánh 1s')
+  assert.equal(attackDurationFor(24), 1000, 'dưới 25 lực vẫn 1s')
+  assert.equal(attackDurationFor(25), 1500, 'quà 25 lực đánh 1,5s')
+  assert.equal(attackDurationFor(100), 1500, 'quà 100 xu đánh 1,5s')
+})
+
+test('TẤN CÔNG THEO QUÀ: ăn mừng 100 xu vẫn thắng tấn công, phe kia thủ trong lúc đó', () => {
+  const now = 400000
+  const cel = { team: 'A', until: now + CELEBRATE_MS }
+  const atk = { team: 'A', until: now + ATTACK_MS_BIG }
+  assert.equal(resolveFighterPose(0.6, 'A', cel, atk, null, now), 'celebrate', 'phe A nhận 100 xu thì ăn mừng, không bị tấn công cắt ngang')
+  assert.equal(resolveFighterPose(0.6, 'B', cel, atk, null, now), 'defend', 'phe B thủ trong lúc A ăn mừng')
+  // Hết tấn công (1,5s) nhưng còn ăn mừng (4,5s): A vẫn nhảy, B về dáng thế trận.
+  assert.equal(resolveFighterPose(0.6, 'A', cel, atk, null, now + ATTACK_MS_BIG), 'celebrate', 'hết 1,5s tấn công thì A vẫn ăn mừng đủ 4,5s')
+  assert.equal(resolveFighterPose(0.6, 'B', cel, atk, null, now + ATTACK_MS_BIG), 'defend', 'B thua thế trận nên vẫn thủ theo thế trận')
+})
+
+test('TẤN CÔNG THEO QUÀ: effect cũ không bật lại khi effect mới hơn hết hạn trước', () => {
+  const now = 500000
+  let st = nextAttackState(null, { team: 'A', id: 'fx_aaa_1', ms: 1000 }, now)
+  assert.equal(st.team, 'A', 'quà Nữ mới thì tấn công Nữ')
+  const st2 = nextAttackState(st, { team: 'A', id: 'fx_aaa_1', ms: 1000 }, now + 100)
+  assert.equal(st2, st, 'cùng id (cùng 1 effect) thì không reset giờ')
+  const st3 = nextAttackState(st, { team: 'B', id: 'fx_aab_2', ms: 1000 }, now + 100)
+  assert.equal(st3.team, 'B', 'quà Nam mới hơn thì đổi chiều sang Nam')
+  const st4 = nextAttackState(st3, { team: 'A', id: 'fx_aaa_1', ms: 1000 }, now + 200)
+  assert.equal(st4, st3, 'effect cũ (quà Nữ trước đó) không bật lại dù effect Nam đã hết')
+  const st5 = nextAttackState(st3, { team: 'A', id: 'perm', ms: 1000 }, now + 200)
+  assert.equal(st5.until, Infinity, 'id perm (?attack=) thì tấn công liên tục để chụp ảnh')
+  assert.equal(nextAttackState(st3, null, now + 200), st3, 'không có effect mới thì giữ nguyên')
+})
+
+test('TẤN CÔNG THEO QUÀ: nhân vật 2D chúi về trước khi tấn công, ngả về sau khi bị tấn công', () => {
+  assert.equal(blockyLeanForSide('A', 0.6, 'A'), -18, 'Nữ tấn công thì chúi về trước')
+  assert.equal(blockyLeanForSide('B', 0.6, 'A'), -18, 'Nam bị tấn công thì ngả về sau')
+  assert.equal(blockyLeanForSide('B', -0.6, 'B'), 18, 'Nam tấn công thì chúi về trước')
+  assert.equal(blockyLeanForSide('A', -0.6, 'B'), 18, 'Nữ bị tấn công thì ngả về sau')
+  assert.equal(blockyLeanForSide('A', 0.6, null), -7, 'không có quà mới thì Nữ theo thế trận như cũ')
+  assert.equal(blockyLeanForSide('B', -0.6, null), 7, 'không có quà mới thì Nam theo thế trận như cũ')
+})
+
+test('TẤN CÔNG THEO QUÀ: applyPull đẩy effect pull có power, cmt cũng đẩy 1 effect pull', () => {
+  const s = freshMatch()
+  applyPull(s, 'A', 25, { nickname: 'To', userId: 'to' }, 'nước hoa')
+  const pull = s.effects.filter((e) => e.kind === 'pull').pop()
+  assert.ok(pull, 'quà phải đẩy effect pull để kích hoạt tấn công')
+  assert.equal(pull.team, 'A', 'effect pull đúng phe được tặng')
+  assert.equal(pull.power, 25, 'effect pull mang power để biết quà to hay nhỏ')
+  const n0 = s.effects.filter((e) => e.kind === 'pull').length
+  applyCheer(s, 'B', { nickname: 'Cmt', userId: 'cmt' })
+  const pull2 = s.effects.filter((e) => e.kind === 'pull').pop()
+  assert.equal(s.effects.filter((e) => e.kind === 'pull').length, n0 + 1, 'cmt +1 cũng đẩy 1 effect pull')
+  assert.equal(pull2.team, 'B', 'cmt cho Nam thì effect pull về phe Nam')
+  assert.equal(pull2.power, 1, 'cmt chỉ 1 điểm nên đánh 1s')
+})
+
+test('ÉP SÂN: Nữ tặng 2 món 100 xu → Nữ ép Nam 10s, Nam chỉ thủ', () => {
+  const now = 600000
+  assert.equal(PRESSURE_MS, 10000, 'thế ép kéo dài 10 giây kể từ món 100 xu mới nhất')
+  let pr = nextPressureState(null, { team: 'A', id: 'fx_baa_1' }, now)
+  assert.equal(pr.team, 'A', 'món 100 xu đầu của Nữ: Nữ giành thế ép')
+  pr = nextPressureState(pr, { team: 'A', id: 'fx_bab_2' }, now + 3000)
+  assert.equal(pr.team, 'A', 'món 100 xu thứ 2 của Nữ: Nữ giữ thế ép')
+  assert.equal(pr.until, now + 3000 + PRESSURE_MS, 'món 100 xu mới làm mới lại 10s')
+  assert.equal(isPressuring(pr, 'A', now + 9000), true, 'trong 10s ép thì Nữ vẫn đang ép')
+  assert.equal(resolveFighterPose(-0.6, 'A', null, null, pr, now + 9000), 'push', 'đang ép: Nữ đánh liên tục dù thế trận nghiêng về Nam')
+  assert.equal(resolveFighterPose(-0.6, 'B', null, null, pr, now + 9000), 'defend', 'đang bị ép: Nam chỉ thủ')
+})
+
+test('ÉP SÂN: Nam tặng quà nhỏ trong lúc bị ép → điểm vẫn + nhưng Nam vẫn thủ, không tấn công', () => {
+  const now = 700000
+  const pr = { team: 'A', until: now + PRESSURE_MS, lastId: 'fx_caa_1' }
+  const s = freshMatch()
+  const b0 = s.roundScore.B || 0
+  applyPull(s, 'B', 5, { nickname: 'Nho', userId: 'nho' }, 'quả đào')
+  assert.ok((s.roundScore.B || 0) > b0, 'quà nhỏ của phe bị ép vẫn cộng điểm bình thường')
+  // Quà nhỏ của Nam tới trong lúc bị ép: nextAttackState nuốt id, không kích hoạt tấn công.
+  const atk = nextAttackState(null, { team: 'B', id: 'fx_cab_9', ms: 1000 }, now + 1000, 'A')
+  assert.equal(atk.team, null, 'quà nhỏ của phe bị ép không kích hoạt tấn công')
+  assert.equal(isAttacking(atk, 'B', now + 1000), false, 'Nam không tấn công trong lúc bị ép')
+  assert.equal(resolveFighterPose(0, 'B', null, atk, pr, now + 1000), 'defend', 'Nam vẫn thủ dù vừa tặng quà nhỏ')
+  assert.equal(resolveFighterPose(0, 'A', null, atk, pr, now + 1000), 'push', 'Nữ vẫn đánh liên tục trong lúc ép')
+  // Hết ép cũng không đánh bù cho món quà nhỏ đã qua (id đã bị nuốt).
+  assert.equal(resolveFighterPose(0, 'B', null, atk, pr, now + PRESSURE_MS + 100), 'idle', 'hết 10s ép thì về dáng thường, không đánh bù quà cũ')
+})
+
+test('ÉP SÂN: chỉ quà 100 xu của phe bị ép mới phá thế ép và lật ngược lại', () => {
+  const now = 800000
+  let pr = nextPressureState(null, { team: 'A', id: 'fx_daa_1' }, now)
+  assert.equal(pr.team, 'A', 'Nữ ép trước')
+  pr = nextPressureState(pr, { team: 'B', id: 'fx_dab_2' }, now + 2000)
+  assert.equal(pr.team, 'B', 'Nam tặng 1 món 100 xu thì giành thế ép về mình')
+  assert.equal(pr.until, now + 2000 + PRESSURE_MS, 'thế ép lật sang Nam, tính lại 10s')
+  assert.equal(resolveFighterPose(0, 'B', null, null, pr, now + 2000), 'push', 'Nam ép thì Nam đánh liên tục')
+  assert.equal(resolveFighterPose(0, 'A', null, null, pr, now + 2000), 'defend', 'Nữ chuyển sang bị ép, chỉ thủ')
+  // Quà nhỏ của Nữ trong lúc bị ép không lật được thế ép.
+  const pr2 = nextPressureState(pr, null, now + 3000)
+  assert.equal(pr2.team, 'B', 'không có món 100 xu mới thì thế ép không đổi')
+})
+
+test('ÉP SÂN: hết 10s không món 100 xu mới thì thế ép tự hết, về luật thường', () => {
+  const now = 900000
+  const pr = { team: 'A', until: now + PRESSURE_MS, lastId: 'fx_eaa_1' }
+  assert.equal(isPressuring(pr, 'A', now + PRESSURE_MS - 1), true, 'sát 10s vẫn còn ép')
+  assert.equal(isPressuring(pr, 'A', now + PRESSURE_MS), false, 'đủ 10s thì hết ép')
+  assert.equal(isPressuring(pr, 'B', now), false, 'phe bị ép không tính là đang ép')
+  assert.equal(resolveFighterPose(0.6, 'A', null, null, pr, now + PRESSURE_MS), 'push', 'hết ép thì Nữ lại đẩy theo thế trận (đang dẫn)')
+  assert.equal(resolveFighterPose(0.6, 'B', null, null, pr, now + PRESSURE_MS), 'defend', 'hết ép thì Nam thủ theo thế trận')
+  assert.equal(isPressuring({ team: 'A', until: Infinity }, 'A', now), true, 'until vô cực (?pressure=) thì ép liên tục để chụp ảnh')
+})
+
+test('ÉP SÂN: ăn mừng 100 xu thắng thế ép, hết ăn mừng mà còn ép thì đấm liên tục', () => {
+  const now = 950000
+  const cel = { team: 'A', until: now + CELEBRATE_MS }
+  const pr = { team: 'A', until: now + PRESSURE_MS, lastId: 'fx_faa_1' }
+  assert.equal(resolveFighterPose(0, 'A', cel, null, pr, now), 'celebrate', 'món 100 xu tới: phe nhận ăn mừng 4,5s trước')
+  assert.equal(resolveFighterPose(0, 'B', cel, null, pr, now), 'defend', 'phe bị ép thủ trong lúc phe kia ăn mừng')
+  assert.equal(resolveFighterPose(0, 'A', cel, null, pr, now + CELEBRATE_MS), 'push', 'hết ăn mừng mà còn trong 10s ép thì chuyển sang đấm liên tục')
+  assert.equal(resolveFighterPose(0, 'B', cel, null, pr, now + CELEBRATE_MS), 'defend', 'phe bị ép vẫn thủ suốt thời gian ép')
 })
 
 test('QUÀ NHỎ KHÔNG ĂN MỪNG: chỉ quà 100 xu mới có spotlight để ăn mừng theo', () => {

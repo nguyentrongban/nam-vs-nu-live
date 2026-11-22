@@ -785,6 +785,14 @@ input, select { font-family: inherit; }
 .nvb-char-wrap.nvb-celebrating .nvb-char { animation: nvb-cheer .6s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255, 201, 77, .95)); }
 @keyframes nvb-cheer { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-12px) rotate(-3deg); } }
 
+/* Tấn công theo quà (chỉ nhân vật dự phòng 2D — bản 3D dùng clip đấm +
+   nhào người trong ThreeFighters): phe vừa được tặng lao về phía đối thủ,
+   phe kia chỉ ngả về sau (lean trong BattleScene), không có animation riêng. */
+.nvb-char-wrap.girl.nvb-attacking .nvb-char { animation: nvb-lunge-r .45s ease-in-out infinite; }
+.nvb-char-wrap.boy.nvb-attacking .nvb-char { animation: nvb-lunge-l .45s ease-in-out infinite; }
+@keyframes nvb-lunge-r { 0%, 100% { transform: translateX(0) rotate(-4deg); } 50% { transform: translateX(8px) rotate(-8deg); } }
+@keyframes nvb-lunge-l { 0%, 100% { transform: translateX(0) rotate(4deg); } 50% { transform: translateX(-8px) rotate(8deg); } }
+
 /* ── NAM vs NỮ: rung theo tỉ lệ đẩy ───────────────────────────────────────
    Quà TO (100 điểm) → rung mạnh + nhân vật bị đẩy ngửa thêm (xem lean trong
    BattleScene); quà nhỏ → rung nhẹ; cmt/tim/follow → chỉ nhích vạch, không
