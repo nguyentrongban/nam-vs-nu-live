@@ -6,7 +6,8 @@
 // (xem src/components/ThreeFighters.jsx). Nếu WebGL/GLB load lỗi thì tự
 // về lại 2 nhân vật blocky 2D tự vẽ (dự phòng, không bao giờ màn trắng).
 // Vạch giữa (ranh giới hồng/xanh) chạy theo rope (-1..+1): phe nào mạnh hơn
-// thì đẩy vạch sang phía phe kia; chạm mép (±0,9) là thắng màn.
+// thì đẩy vạch sang phía phe kia; chạm mép (±1,0) là thắng màn — màu phe
+// thắng phủ hết màn hình, không còn vệt màu phe thua ở mép bên kia.
 import { useEffect, useRef, useState } from 'react'
 import ThreeFighters from './ThreeFighters'
 import { fighterFractions } from '../game/stage3d.js'
@@ -56,10 +57,10 @@ function Blocky({ side, lean }) {
 }
 
 export default function BattleScene({ rope = 0, scoreA = 0, scoreB = 0, countA = 0, countB = 0, winsA = 0, winsB = 0, matchWinsA = 0, matchWinsB = 0, round = 1, timeLeft = 60, phase = 'waiting', jolt = null, joltTeam = null, joltId = '', celebrateTeam = null, celebrateId = '', attackTeam = null, attackId = '', attackMs = 1000, pressureTeam = null, pressureId = '' }) {
-  // Vạch giữa: 50% khi hòa, chạy tới 90,5% khi Nữ thắng hẳn, 9,5% khi Nam thắng hẳn.
-  // Tỉ lệ đẩy (ngưỡng thắng chênh 100 điểm): cmt +1 → vạch nhích 0,45% (tí xíu),
-  // 100 tim/follow +10 → nhích 4,5%, quà to 100 → vọt 45% tới sát mép.
-  const divider = 50 + rope * 45
+  // Vạch giữa: 50% khi hòa, chạy tới 100% khi Nữ thắng hẳn, 0% khi Nam thắng hẳn.
+  // Tỉ lệ đẩy (ngưỡng thắng chênh 100 điểm): cmt +1 → vạch nhích 0,5% (tí xíu),
+  // 100 tim/follow +10 → nhích 5%, quà to 100 → vọt 50% tới mép.
+  const divider = 50 + rope * 50
   // Nhân vật 3D đã load xong chưa — chưa xong / load lỗi thì hiện blocky 2D
   // dự phòng để màn không bao giờ trống nhân vật.
   const [threeOk, setThreeOk] = useState(false)

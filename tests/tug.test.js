@@ -209,14 +209,14 @@ test('luật đẩy: phe tặng quà nhiều hơn đẩy vạch giữa chạm m�
   }
   assert.equal(s.phase, 'roundEnd', 'đẩy liên tục phải thắng màn')
   assert.equal(s.roundWinner, 'B', 'Nam đẩy nhiều hơn thì Nam thắng màn')
-  assert.ok(s.rope <= -0.5, `vạch phải chạm mép Nữ (-0,5), được ${s.rope}`)
+  assert.ok(s.rope <= -1, `vạch phải chạm mép Nữ (-1,0), được ${s.rope}`)
 })
 
 test('điểm chỉ cộng lên, không tụt: vạch đứng yên khi không ai đẩy', () => {
   const s = freshMatch()
-  s.roundScore = { A: 50, B: 0 } // chênh 50 → vạch 0,45
+  s.roundScore = { A: 50, B: 0 } // chênh 50 → vạch 0,5
   step(s, 10)
-  assert.ok(approx(s.rope, 0.45), `10 giây không ai đẩy thì vạch vẫn 0,45, được ${s.rope}`)
+  assert.ok(approx(s.rope, 0.5), `10 giây không ai đẩy thì vạch vẫn 0,5, được ${s.rope}`)
   assert.equal(s.roundScore.A, 50, 'điểm không tụt')
   assert.equal(s.phase, 'pulling')
 })
@@ -226,26 +226,45 @@ test('chênh 100 điểm mới thắng màn — chênh 30 thì chưa thắng (ti
   applyPull(s, 'A', 30, { nickname: 'Lan', userId: 'lan' })
   step(s, 0.5)
   assert.equal(s.phase, 'pulling', 'chênh 30 điểm chưa thắng')
-  assert.ok(approx(s.rope, 0.27), `chênh 30/100 thì vạch 0,27, được ${s.rope}`)
+  assert.ok(approx(s.rope, 0.3), `chênh 30/100 thì vạch 0,3, được ${s.rope}`)
   applyPull(s, 'A', 70, { nickname: 'Lan', userId: 'lan' })
   step(s, 0.5)
   assert.equal(s.phase, 'roundEnd', 'chênh 100 điểm thì thắng màn')
   assert.equal(s.roundWinner, 'A')
-  assert.ok(approx(s.rope, 0.9), 'vạch chạm sát mép 0,9')
+  assert.ok(approx(s.rope, 1), 'vạch chạm mép 1,0 lúc thắng')
 })
 test('tỉ lệ đẩy: cmt +1 nhích tí, tim +10 nhích ít, quà to 100 vọt tới mép', () => {
   const s = freshMatch()
   applyCheer(s, 'A', { nickname: 'A', userId: 'a' })
   step(s, 0.1)
-  assert.ok(approx(s.rope, 0.009), `cmt +1 → vạch nhích 0,009, được ${s.rope}`)
+  assert.ok(approx(s.rope, 0.01), `cmt +1 → vạch nhích 0,01, được ${s.rope}`)
   applyLikes(s, 'user1', 100) // +10 cho Nữ
   step(s, 0.1)
-  assert.ok(approx(s.rope, 0.099), `thêm 100 tim (+10) → vạch 0,099, được ${s.rope}`)
+  assert.ok(approx(s.rope, 0.11), `thêm 100 tim (+10) → vạch 0,11, được ${s.rope}`)
   assert.equal(s.phase, 'pulling', 'cmt + tim vẫn chưa thắng')
   applyPull(s, 'A', 100, { nickname: 'Lan', userId: 'lan' }) // quà to 100
   step(s, 0.1)
   assert.equal(s.phase, 'roundEnd', '1 quà to 100 điểm thì vọt tới mép và thắng')
   assert.equal(s.roundWinner, 'A')
+})
+
+test('vạch thắng chạm mép: chênh 100 → rope ±1,0 (màu phe thắng phủ hết màn), chênh 50 → ±0,5 chưa thắng', () => {
+  assert.equal(DEFAULT_SETTINGS.winDiff, 100, 'ngưỡng thắng vẫn chênh 100 điểm như cũ')
+  const a = freshMatch()
+  applyPull(a, 'A', 50, { nickname: 'Lan', userId: 'lan' })
+  step(a, 0.1)
+  assert.equal(a.phase, 'pulling', 'chênh 50 chưa thắng')
+  assert.ok(approx(a.rope, 0.5), `chênh 50/100 thì vạch 0,5, được ${a.rope}`)
+  applyPull(a, 'A', 50, { nickname: 'Lan', userId: 'lan' })
+  step(a, 0.1)
+  assert.equal(a.phase, 'roundEnd', 'chênh 100 thì thắng màn')
+  assert.ok(approx(a.rope, 1), `lúc thắng vạch chạm mép +1,0, được ${a.rope}`)
+  const b = freshMatch()
+  applyPull(b, 'B', 100, { nickname: 'Nam', userId: 'nam' })
+  step(b, 0.1)
+  assert.equal(b.phase, 'roundEnd', 'Nam chênh 100 thì thắng màn')
+  assert.equal(b.roundWinner, 'B')
+  assert.ok(approx(b.rope, -1), `Nam thắng thì vạch chạm mép -1,0, được ${b.rope}`)
 })
 
 // ── 6. Hết giờ ─────────────────────────────────────────────────────────────

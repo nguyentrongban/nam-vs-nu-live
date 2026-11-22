@@ -265,8 +265,8 @@ export const DEFAULT_SETTINGS = {
   roundSeconds: 60,          // 1 màn đấu tối đa 60 giây (chưa tính tim cộng thêm)
   countdownSeconds: 3,
   winsToMatch: 2,            // thắng 2 màn trước thì thắng trận (best of 3 — tối đa 3 màn)
-  winLine: 0.9,              // vạch giữa chạm ±0,9 (sát mép) là thắng màn ngay
-  winDiff: 100,              // ĐIỂM TÍCH LŨY: chênh lệch điểm 2 phe đạt 100 thì vạch giữa chạm sát mép (±0,9) và thắng màn — Admin chỉnh được (tăng lên để màn kéo dài: tim/cmt chỉ nhích nhẹ, muốn thắng nhanh phải tặng quà)
+  winLine: 1.0,              // vạch giữa chạm mép (±1,0) là thắng màn ngay (cài đặt cũ, hiện thắng theo winDiff)
+  winDiff: 100,              // ĐIỂM TÍCH LŨY: chênh lệch điểm 2 phe đạt 100 thì vạch giữa chạm mép (±1,0) và thắng màn — Admin chỉnh được (tăng lên để màn kéo dài: tim/cmt chỉ nhích nhẹ, muốn thắng nhanh phải tặng quà)
   ropeSpeed: 0.08,           // tốc độ vạch giữa tối đa — 1 phe áp đảo hoàn toàn thì vạch chạy 0,08/giây (chậm để có thời gian tặng quà, câu giờ)
   ropeDecay: 0.02,           // dây tự trôi nhẹ về giữa 2%/giây
   boostDecay: 0.2,           // quà tặng tắt dần — bùng lực giảm một nửa sau ~3,5 giây
@@ -916,14 +916,15 @@ export function tick(state, dt) {
   state.finalTime = state.roundTimeLeft <= (state.settings.finalSeconds ?? 10)
   // ĐIỂM TÍCH LŨY (luật chốt 2026-11-21): điểm chỉ cộng lên, KHÔNG trừ,
   // KHÔNG tụt về giữa, KHÔNG tắt dần. Vạch giữa chạy theo chênh lệch điểm
-  // màn này: chênh 0 → giữa, chênh ±winDiff → sát mép (±0,9) = thắng màn.
+  // màn này: chênh 0 → giữa, chênh ±winDiff → chạm mép (±1,0) = thắng màn.
   const rs = state.roundScore || { A: 0, B: 0 }
   const diff = (rs.A || 0) - (rs.B || 0)
   const winDiff = state.settings.winDiff || 100
-  state.rope = clamp(diff / winDiff * 0.9, -0.9, 0.9)
+  state.rope = clamp(diff / winDiff, -1, 1)
   if (Math.abs(diff) >= winDiff) {
-    // Chạm sát mép: kẹp vạch đúng ±0,9 để cờ nằm đúng vạch khi màn kết thúc.
-    state.rope = Math.sign(diff) * 0.9
+    // Chạm mép: kẹp vạch đúng ±1,0 để màu phe thắng phủ hết màn hình,
+    // không còn vệt màu phe thua ở mép bên kia.
+    state.rope = Math.sign(diff) * 1
     endRound(state, diff > 0 ? 'A' : 'B')
     return
   }

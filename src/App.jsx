@@ -78,7 +78,7 @@ function DisplayGame() {
   // ?pose=a|b|idle — khóa thế trận để chụp ảnh/kiểm tra dáng 3D (không ảnh
   // hưởng luật chơi; không có param thì rope chạy theo game bình thường).
   const poseParam = new URLSearchParams(window.location.search).get('pose')
-  const previewRope = poseParam === 'a' ? 0.6 : poseParam === 'b' ? -0.6 : poseParam === 'idle' ? 0 : null
+  const previewRope = poseParam === 'a' ? 0.6 : poseParam === 'b' ? -0.6 : poseParam === 'idle' ? 0 : poseParam === 'win' ? 1 : poseParam === 'winb' ? -1 : null // win/winb khóa vạch ở mép thắng ±1,0 để kiểm tra màu phe thắng phủ hết màn
   const teamA = s?.teams?.A
   const teamB = s?.teams?.B
   // Điểm hiển thị: tổng lực quà + số người vào phe (vào phe là +1 điểm ngay).
